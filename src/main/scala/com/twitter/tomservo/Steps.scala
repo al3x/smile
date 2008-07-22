@@ -20,4 +20,23 @@ object Steps {
             state.buffer.get(byteBuffer)
             process(state, byteBuffer)
         })
+
+    def readDelimiter(getDelimiter: State => Byte, process: (State, Int) => Option[Step]) =
+        new ReadDelimiterStep(getDelimiter, process)
+    def readDelimiter(delimiter: Byte, process: (State, Int) => Option[Step]) =
+        new ReadDelimiterStep((x: State) => delimiter, process)
+
+    // this isn't very efficient (lots of buffer copying):
+    def readDelimiterBuffer(getDelimiter: State => Byte, process: (State, Array[Byte]) => Option[Step]) =
+        new ReadDelimiterStep(getDelimiter, (state: State, n: Int) => {
+            val byteBuffer = new Array[Byte](n)
+            state.buffer.get(byteBuffer)
+            process(state, byteBuffer)
+        })
+    def readDelimiterBuffer(delimiter: Byte, process: (State, Array[Byte]) => Option[Step]) =
+        new ReadDelimiterStep((x: State) => delimiter, (state: State, n: Int) => {
+            val byteBuffer = new Array[Byte](n)
+            state.buffer.get(byteBuffer)
+            process(state, byteBuffer)
+        })
 }

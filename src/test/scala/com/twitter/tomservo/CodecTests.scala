@@ -74,13 +74,58 @@ object CodecTests extends Tests {
         expect(List("1234", "5678", "9ABC", "DEFG", "HIJK", "LMNO", "PQRS")) { written }
     }
 
+    test("ReadDelimiterStep") {
+        var scored = false
+        val step = readDelimiterBuffer('\n'.toByte, (state: State, buffer: Array[Byte]) => {
+            scored = true
+            None
+        })
+        val decoder = new Decoder(step)
+        decoder.decode(fakeSession, IoBuffer.wrap("hello".getBytes), fakeDecoderOutput)
+        expect(Nil) { written }
+        expect(false) { scored }
+        decoder.decode(fakeSession, IoBuffer.wrap(" kitty\n".getBytes), fakeDecoderOutput)
+        expect(Nil) { written }
+        expect(true) { scored }
+    }
+
+    test("ReadDelimiterStep can chunk") {
+        val step = readDelimiterBuffer('\n'.toByte, (state: State, buffer: Array[Byte]) => {
+            state.out.write(new String(buffer))
+            None
+        })
+        val decoder = new Decoder(step)
+
+        // partial write gives nothing:
+        decoder.decode(fakeSession, IoBuffer.wrap("partia".getBytes), fakeDecoderOutput)
+        expect(Nil) { written }
+        // overlap write finishes one block and continues buffering:
+        decoder.decode(fakeSession, IoBuffer.wrap("l\nand".getBytes), fakeDecoderOutput)
+        expect(List("partial\n")) { written }
+        // overlap write continues to block correctly:
+        decoder.decode(fakeSession, IoBuffer.wrap(" another\nbut the".getBytes), fakeDecoderOutput)
+        expect(List("partial\n", "and another\n")) { written }
+        // many-block write gives all finished blocks:
+        decoder.decode(fakeSession, IoBuffer.wrap("n\nmany\nnew ones\nbo".getBytes), fakeDecoderOutput)
+        expect(List("partial\n", "and another\n", "but then\n", "many\n", "new ones\n")) { written }
+        // partial write gives nothing, even with partial buffer:
+        decoder.decode(fakeSession, IoBuffer.wrap("re".getBytes), fakeDecoderOutput)
+        expect(List("partial\n", "and another\n", "but then\n", "many\n", "new ones\n")) { written }
+        // exact block closing gives a block:
+        decoder.decode(fakeSession, IoBuffer.wrap("d now\n".getBytes), fakeDecoderOutput)
+        expect(List("partial\n", "and another\n", "but then\n", "many\n", "new ones\n", "bored now\n")) { written }
+        // ditto for an exact whole block:
+        decoder.decode(fakeSession, IoBuffer.wrap("bye\n".getBytes), fakeDecoderOutput)
+        expect(List("partial\n", "and another\n", "but then\n", "many\n", "new ones\n", "bored now\n", "bye\n")) { written }
+    }
+
 /*    test("foo") {
         val decoder = new Decoder(new Step { x })
         def apply(state: State): StepResult = {
 
         class ReadBytesStep(getCount: State => Int, process: State => Option[Step]) extends Step {
             def decode(session: IoSession, in: IoBuffer, out: ProtocolDecoderOutput): Unit = {
-        
+
 
         expect(3) { 3 }
     }
