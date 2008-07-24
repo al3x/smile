@@ -5,6 +5,9 @@ import org.apache.mina.core.session.IoSession
 import org.apache.mina.filter.codec._
 
 
+class ProtocolError(message: String) extends Exception(message)
+
+
 class Decoder(private val firstStep: Step) extends ProtocolDecoder {
 
     private val STATE_KEY = "com.twitter.tomservo.state".intern
@@ -13,10 +16,12 @@ class Decoder(private val firstStep: Step) extends ProtocolDecoder {
         session.removeAttribute(STATE_KEY)
     }
 
+    @throws(classOf[Exception])
     def finishDecode(session: IoSession, out: ProtocolDecoderOutput): Unit = {
-        // um, no. :)
+        // won't do any good.
     }
 
+    @throws(classOf[Exception])
     def decode(session: IoSession, in: IoBuffer, out: ProtocolDecoderOutput): Unit = {
         val state = session.getAttribute(STATE_KEY) match {
             case null =>
@@ -38,16 +43,16 @@ class Decoder(private val firstStep: Step) extends ProtocolDecoder {
                     /* if there's a next step set in the state, use that.
                      * otherwise if there's an implicit next step after the
                      * current one, use that. if nothing else, repeat the
-                     * current step.
+                     * first step.
                      */
                     state.currentStep = state.nextStep match {
-                        case Some(s) => s
-                        case None => step.next match {
-                            case Some(s) => s
-                            case None => step
+                        case End => step.next match {
+                            case End => firstStep
+                            case s => s
                         }
+                        case s => s
                     }
-                    state.nextStep = None
+                    state.nextStep = End
             }
         } while (! done)
 

@@ -9,18 +9,25 @@ case object COMPLETE extends StepResult("complete")
 
 abstract class Step {
     // an implicit (default) next-step can be set via the :: operator
-    private[tomservo] var next: Option[Step] = None
+    private[tomservo] var next: Step = End
 
     def apply(state: State): StepResult
 
     // s1 :: s2  -->  s1 then s2
-    def ::(s: Step) = { s.next = Some(this); this }
+    def ::(s: Step) = { s.next = this; this }
+}
+
+/**
+ * Special Step which means "end of decoding; start over".
+ */
+final object End extends Step {
+    override def apply(state: State): StepResult = COMPLETE
 }
 
 
 // FIXME: move these
 
-class ReadBytesStep(getCount: State => Int, process: State => Option[Step]) extends Step {
+class ReadBytesStep(getCount: State => Int, process: State => Step) extends Step {
     def apply(state: State): StepResult = {
         // FIXME: try to cache the count.
         val count = getCount(state)
@@ -33,7 +40,7 @@ class ReadBytesStep(getCount: State => Int, process: State => Option[Step]) exte
     }
 }
 
-class ReadDelimiterStep(getDelimiter: State => Byte, process: (State, Int) => Option[Step]) extends Step {
+class ReadDelimiterStep(getDelimiter: State => Byte, process: (State, Int) => Step) extends Step {
     def apply(state: State): StepResult = {
         val delimiter = getDelimiter(state)
         state.buffer.indexOf(delimiter) match {

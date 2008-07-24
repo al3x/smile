@@ -27,12 +27,12 @@ object CodecTests extends Tests {
     }
 
 
-    test("ReadBytesStep") {
+    test("readBytes") {
         var scored = false
-        val step = readByteBuffer(3, (state: State, buffer: Array[Byte]) => {
+        val step = readByteBuffer(3) { (state: State, buffer: Array[Byte]) =>
             scored = true
-            None
-        })
+            End
+        }
 
         val decoder = new Decoder(step)
         decoder.decode(fakeSession, IoBuffer.wrap("xx".getBytes), fakeDecoderOutput)
@@ -43,12 +43,12 @@ object CodecTests extends Tests {
         expect(true) { scored }
     }
 
-    test("ReadBytesStep can chunk") {
+    test("readBytes can chunk") {
         // chunk up every 4 bytes:
-        val step = readByteBuffer(4, (state: State, buffer: Array[Byte]) => {
+        val step = readByteBuffer(4) { (state: State, buffer: Array[Byte]) =>
             state.out.write(new String(buffer))
-            None
-        })
+            End
+        }
         val decoder = new Decoder(step)
 
         // partial write gives nothing:
@@ -74,12 +74,12 @@ object CodecTests extends Tests {
         expect(List("1234", "5678", "9ABC", "DEFG", "HIJK", "LMNO", "PQRS")) { written }
     }
 
-    test("ReadDelimiterStep") {
+    test("readDelimiter") {
         var scored = false
-        val step = readDelimiterBuffer('\n'.toByte, (state: State, buffer: Array[Byte]) => {
+        val step = readDelimiterBuffer('\n'.toByte) { (state: State, buffer: Array[Byte]) =>
             scored = true
-            None
-        })
+            End
+        }
         val decoder = new Decoder(step)
         decoder.decode(fakeSession, IoBuffer.wrap("hello".getBytes), fakeDecoderOutput)
         expect(Nil) { written }
@@ -89,11 +89,11 @@ object CodecTests extends Tests {
         expect(true) { scored }
     }
 
-    test("ReadDelimiterStep can chunk") {
-        val step = readDelimiterBuffer('\n'.toByte, (state: State, buffer: Array[Byte]) => {
+    test("readDelimiter can chunk") {
+        val step = readDelimiterBuffer('\n'.toByte) { (state: State, buffer: Array[Byte]) =>
             state.out.write(new String(buffer))
-            None
-        })
+            End
+        }
         val decoder = new Decoder(step)
 
         // partial write gives nothing:
@@ -119,6 +119,35 @@ object CodecTests extends Tests {
         expect(List("partial\n", "and another\n", "but then\n", "many\n", "new ones\n", "bored now\n", "bye\n")) { written }
     }
 
+    test("readLine") {
+        val step = readLine { (state: State, line: String) =>
+            state.out.write(line)
+            End
+        }
+        val decoder = new Decoder(step)
+
+        decoder.decode(fakeSession, IoBuffer.wrap("hello there\r\ncat".getBytes), fakeDecoderOutput)
+        expect(List("hello there")) { written }
+        decoder.decode(fakeSession, IoBuffer.wrap("s don't use CR\n".getBytes), fakeDecoderOutput)
+        expect(List("hello there", "cats don't use CR")) { written }
+        decoder.decode(fakeSession, IoBuffer.wrap("thing\r\n\nstop\r\n\r\nokay.\n".getBytes), fakeDecoderOutput)
+        expect(List("hello there", "cats don't use CR", "thing", "", "stop", "", "okay.")) { written }
+    }
+
+    test("readLine preserving CRLF") {
+        val step = readLine(false) { (state: State, line: String) =>
+            state.out.write(line)
+            End
+        }
+        val decoder = new Decoder(step)
+
+        decoder.decode(fakeSession, IoBuffer.wrap("hello there\r\ncat".getBytes), fakeDecoderOutput)
+        expect(List("hello there\r\n")) { written }
+        decoder.decode(fakeSession, IoBuffer.wrap("s don't use CR\n".getBytes), fakeDecoderOutput)
+        expect(List("hello there\r\n", "cats don't use CR\n")) { written }
+        decoder.decode(fakeSession, IoBuffer.wrap("thing\r\n\nstop\r\n\r\nokay.\n".getBytes), fakeDecoderOutput)
+        expect(List("hello there\r\n", "cats don't use CR\n", "thing\r\n", "\n", "stop\r\n", "\r\n", "okay.\n")) { written }
+    }
 /*    test("foo") {
         val decoder = new Decoder(new Step { x })
         def apply(state: State): StepResult = {

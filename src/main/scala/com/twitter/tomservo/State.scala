@@ -15,7 +15,7 @@ class State(firstStep: Step, val session: IoSession, val out: ProtocolDecoderOut
     private[tomservo] var currentStep = firstStep
 
     // next step to execute after the current step completes
-    var nextStep: Option[Step] = None
+    var nextStep: Step = End
 
     // arbitrary data can be stored here by Steps
     val data: mutable.Map[String, Object] = new mutable.HashMap[String, Object]
@@ -60,7 +60,7 @@ class State(firstStep: Step, val session: IoSession, val out: ProtocolDecoderOut
     def reset = {
         data.clear
         currentStep = firstStep
-        nextStep = None
+        nextStep = End
         buffer = IoBuffer.EMPTY_BUFFER
         dynamicBuffer = false
     }
