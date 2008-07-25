@@ -4,47 +4,50 @@ import java.nio.ByteOrder
 
 
 object Steps {
-    def readBytes(getCount: State => Int)(process: State => Step) =
+    // let codec steps access decoder state easily (via thread-local)
+    def state = Decoder.localState.get()
+
+    def readBytes(getCount: () => Int)(process: () => Step) =
         new ReadBytesStep(getCount, process)
-    def readBytes(count: Int)(process: State => Step) =
+    def readBytes(count: Int)(process: () => Step) =
         new ReadNBytesStep(count, process)
 
     // this isn't very efficient (lots of buffer copying):
-    def readByteBuffer(getCount: State => Int)(process: (State, Array[Byte]) => Step) =
-        new ReadBytesStep(getCount, (state: State) => {
-            val byteBuffer = new Array[Byte](getCount(state))
+    def readByteBuffer(getCount: () => Int)(process: Array[Byte] => Step) =
+        new ReadBytesStep(getCount, { () =>
+            val byteBuffer = new Array[Byte](getCount())
             state.buffer.get(byteBuffer)
-            process(state, byteBuffer)
+            process(byteBuffer)
         })
-    def readByteBuffer(count: Int)(process: (State, Array[Byte]) => Step) =
-        new ReadNBytesStep(count, (state: State) => {
+    def readByteBuffer(count: Int)(process: Array[Byte] => Step) =
+        new ReadNBytesStep(count, { () =>
             val byteBuffer = new Array[Byte](count)
             state.buffer.get(byteBuffer)
-            process(state, byteBuffer)
+            process(byteBuffer)
         })
 
-    def readDelimiter(getDelimiter: State => Byte)(process: (State, Int) => Step) =
+    def readDelimiter(getDelimiter: () => Byte)(process: (Int) => Step) =
         new ReadDelimiterStep(getDelimiter, process)
-    def readDelimiter(delimiter: Byte)(process: (State, Int) => Step) =
+    def readDelimiter(delimiter: Byte)(process: (Int) => Step) =
         new ReadNDelimiterStep(delimiter, process)
 
     // this isn't very efficient (lots of buffer copying):
-    def readDelimiterBuffer(getDelimiter: State => Byte)(process: (State, Array[Byte]) => Step) =
-        new ReadDelimiterStep(getDelimiter, (state: State, n: Int) => {
+    def readDelimiterBuffer(getDelimiter: () => Byte)(process: (Array[Byte]) => Step) =
+        new ReadDelimiterStep(getDelimiter, (n: Int) => {
             val byteBuffer = new Array[Byte](n)
             state.buffer.get(byteBuffer)
-            process(state, byteBuffer)
+            process(byteBuffer)
         })
-    def readDelimiterBuffer(delimiter: Byte)(process: (State, Array[Byte]) => Step) =
-        new ReadNDelimiterStep(delimiter, (state: State, n: Int) => {
+    def readDelimiterBuffer(delimiter: Byte)(process: (Array[Byte]) => Step) =
+        new ReadNDelimiterStep(delimiter, (n: Int) => {
             val byteBuffer = new Array[Byte](n)
             state.buffer.get(byteBuffer)
-            process(state, byteBuffer)
+            process(byteBuffer)
         })
 
     // specialized for line buffering:
-    def readLine(removeLF: Boolean)(process: (State, String) => Step) =
-        new ReadNDelimiterStep('\n'.toByte, (state, n) => {
+    def readLine(removeLF: Boolean)(process: (String) => Step) =
+        new ReadNDelimiterStep('\n'.toByte, (n) => {
             val end = if ((n > 1) && (state.buffer.get(state.buffer.position + n - 2) == '\r'.toByte)) {
                 n - 2
             } else {
@@ -52,26 +55,23 @@ object Steps {
             }
             val byteBuffer = new Array[Byte](n)
             state.buffer.get(byteBuffer)
-            process(state, new String(byteBuffer, 0, (if (removeLF) end else n), "UTF-8"))
+            process(new String(byteBuffer, 0, (if (removeLF) end else n), "UTF-8"))
         })
-    def readLine(process: (State, String) => Step): Step = readLine(true)(process)
+    def readLine(process: (String) => Step): Step = readLine(true)(process)
 
     // read 1-byte ints:
-    def readInt8(process: (State, Byte) => Step) =
-        new ReadNBytesStep(1, (state: State) => {
-            process(state, state.buffer.get)
-        })
+    def readInt8(process: (Byte) => Step) = new ReadNBytesStep(1, { () => process(state.buffer.get) })
 
     // read 4-byte ints:
-    def readInt32(process: (State, Int) => Step) = readInt32BE(process)
-    def readInt32BE(process: (State, Int) => Step) =
-        new ReadNBytesStep(4, (state: State) => {
+    def readInt32(process: (Int) => Step) = readInt32BE(process)
+    def readInt32BE(process: (Int) => Step) =
+        new ReadNBytesStep(4, { () =>
             state.buffer.order(ByteOrder.BIG_ENDIAN)
-            process(state, state.buffer.getInt)
+            process(state.buffer.getInt)
         })
-    def readInt32LE(process: (State, Int) => Step) =
-        new ReadNBytesStep(4, (state: State) => {
+    def readInt32LE(process: (Int) => Step) =
+        new ReadNBytesStep(4, { () =>
             state.buffer.order(ByteOrder.LITTLE_ENDIAN)
-            process(state, state.buffer.getInt)
+            process(state.buffer.getInt)
         })
 }

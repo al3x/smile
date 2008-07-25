@@ -8,6 +8,11 @@ import org.apache.mina.filter.codec._
 class ProtocolError(message: String) extends Exception(message)
 
 
+object Decoder {
+    protected[tomservo] var localState = new ThreadLocal[State]
+}
+
+
 class Decoder(private val firstStep: Step) extends ProtocolDecoder {
 
     private val STATE_KEY = "com.twitter.tomservo.state".intern
@@ -32,10 +37,13 @@ class Decoder(private val firstStep: Step) extends ProtocolDecoder {
         }
         state.addBuffer(in)
 
+        // stuff the decoder state into a thread-local so that codec steps can reach it easily.
+        Decoder.localState.set(state)
+
         var done = false
         do {
             val step = state.currentStep
-            step(state) match {
+            step() match {
                 case NEED_DATA =>
                     // stay in current state; collect more data; try again later.
                     done = true

@@ -36,23 +36,23 @@ object CodecTests extends Tests {
 
     test("readBytes") {
         var scored = false
-        val step = readByteBuffer(3) { (state: State, buffer: Array[Byte]) =>
+        val step = readByteBuffer(3) { buffer =>
             scored = true
             End
         }
 
         val decoder = new Decoder(step)
-        decoder.decode(fakeSession, IoBuffer.wrap("xx".getBytes), fakeDecoderOutput)
+        quickDecode(decoder, "xx")
         expect(Nil) { written }
         expect(false) { scored }
-        decoder.decode(fakeSession, IoBuffer.wrap("y".getBytes), fakeDecoderOutput)
+        quickDecode(decoder, "y")
         expect(Nil) { written }
         expect(true) { scored }
     }
 
     test("readBytes can chunk") {
         // chunk up every 4 bytes:
-        val step = readByteBuffer(4) { (state: State, buffer: Array[Byte]) =>
+        val step = readByteBuffer(4) { buffer =>
             state.out.write(new String(buffer))
             End
         }
@@ -83,7 +83,7 @@ object CodecTests extends Tests {
 
     test("readDelimiter") {
         var scored = false
-        val step = readDelimiterBuffer('\n'.toByte) { (state: State, buffer: Array[Byte]) =>
+        val step = readDelimiterBuffer('\n'.toByte) { buffer =>
             scored = true
             End
         }
@@ -97,7 +97,7 @@ object CodecTests extends Tests {
     }
 
     test("readDelimiter can chunk") {
-        val step = readDelimiterBuffer('\n'.toByte) { (state: State, buffer: Array[Byte]) =>
+        val step = readDelimiterBuffer('\n'.toByte) { buffer =>
             state.out.write(new String(buffer))
             End
         }
@@ -127,38 +127,32 @@ object CodecTests extends Tests {
     }
 
     test("readLine") {
-        val step = readLine { (state: State, line: String) =>
-            state.out.write(line)
-            End
-        }
+        val step = readLine { line => state.out.write(line); End }
         val decoder = new Decoder(step)
 
-        decoder.decode(fakeSession, IoBuffer.wrap("hello there\r\ncat".getBytes), fakeDecoderOutput)
+        quickDecode(decoder, "hello there\r\ncat")
         expect(List("hello there")) { written }
-        decoder.decode(fakeSession, IoBuffer.wrap("s don't use CR\n".getBytes), fakeDecoderOutput)
+        quickDecode(decoder,"s don't use CR\n")
         expect(List("hello there", "cats don't use CR")) { written }
-        decoder.decode(fakeSession, IoBuffer.wrap("thing\r\n\nstop\r\n\r\nokay.\n".getBytes), fakeDecoderOutput)
+        quickDecode(decoder, "thing\r\n\nstop\r\n\r\nokay.\n")
         expect(List("hello there", "cats don't use CR", "thing", "", "stop", "", "okay.")) { written }
     }
 
     test("readLine preserving CRLF") {
-        val step = readLine(false) { (state: State, line: String) =>
-            state.out.write(line)
-            End
-        }
+        val step = readLine(false) { line => state.out.write(line); End }
         val decoder = new Decoder(step)
 
-        decoder.decode(fakeSession, IoBuffer.wrap("hello there\r\ncat".getBytes), fakeDecoderOutput)
+        quickDecode(decoder, "hello there\r\ncat")
         expect(List("hello there\r\n")) { written }
-        decoder.decode(fakeSession, IoBuffer.wrap("s don't use CR\n".getBytes), fakeDecoderOutput)
+        quickDecode(decoder, "s don't use CR\n")
         expect(List("hello there\r\n", "cats don't use CR\n")) { written }
-        decoder.decode(fakeSession, IoBuffer.wrap("thing\r\n\nstop\r\n\r\nokay.\n".getBytes), fakeDecoderOutput)
+        quickDecode(decoder, "thing\r\n\nstop\r\n\r\nokay.\n")
         expect(List("hello there\r\n", "cats don't use CR\n", "thing\r\n", "\n", "stop\r\n", "\r\n", "okay.\n")) { written }
     }
 
     test("combine") {
-        val step = readInt32 { (state, len) =>
-            readByteBuffer(len) { (state, bytes) =>
+        val step = readInt32 { len =>
+            readByteBuffer(len) { bytes =>
                 state.out.write(new String(bytes, "UTF-8"))
                 End
             }
@@ -176,14 +170,14 @@ object CodecTests extends Tests {
 
     test("combine with branching") {
         // 1-byte "type" field indicates if a string or int follows
-        val step = readInt8 { (state, datatype) =>
+        val step = readInt8 { datatype =>
             if ((datatype & 0x80) == 0) {
-                readByteBuffer(datatype & 0x7f) { (state, bytes) =>
+                readByteBuffer(datatype & 0x7f) { bytes =>
                     state.out.write(new String(bytes, "UTF-8"))
                     End
                 }
             } else {
-                readInt32 { (state, n) =>
+                readInt32 { n =>
                     state.out.write(n)
                     End
                 }
