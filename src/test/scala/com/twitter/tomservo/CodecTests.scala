@@ -1,5 +1,6 @@
 package com.twitter.tomservo
 
+import java.nio.ByteOrder
 import org.apache.mina.core.buffer.IoBuffer
 import org.apache.mina.core.session.{AbstractIoSession, DummySession, IoSession}
 import org.apache.mina.filter.codec._
@@ -24,6 +25,12 @@ object CodecTests extends Tests {
                 written = written + obj
             }
         }
+    }
+
+    def quickDecode(decoder: Decoder, s: String): Unit = quickDecode(decoder, s.getBytes)
+    def quickDecode(decoder: Decoder, b: Array[Byte]): Unit = quickDecode(decoder, IoBuffer.wrap(b))
+    def quickDecode(decoder: Decoder, buf: IoBuffer): Unit = {
+        decoder.decode(fakeSession, buf, fakeDecoderOutput)
     }
 
 
@@ -148,15 +155,53 @@ object CodecTests extends Tests {
         decoder.decode(fakeSession, IoBuffer.wrap("thing\r\n\nstop\r\n\r\nokay.\n".getBytes), fakeDecoderOutput)
         expect(List("hello there\r\n", "cats don't use CR\n", "thing\r\n", "\n", "stop\r\n", "\r\n", "okay.\n")) { written }
     }
-/*    test("foo") {
-        val decoder = new Decoder(new Step { x })
-        def apply(state: State): StepResult = {
 
-        class ReadBytesStep(getCount: State => Int, process: State => Option[Step]) extends Step {
-            def decode(session: IoSession, in: IoBuffer, out: ProtocolDecoderOutput): Unit = {
+    test("combine") {
+        val step = readInt32 { (state, len) =>
+            readByteBuffer(len) { (state, bytes) =>
+                state.out.write(new String(bytes, "UTF-8"))
+                End
+            }
+        }
+        val decoder = new Decoder(step)
 
-
-        expect(3) { 3 }
+        val buffer = IoBuffer.allocate(9)
+        buffer.order(ByteOrder.BIG_ENDIAN)
+        buffer.putInt(5)
+        buffer.put("hello".getBytes)
+        buffer.flip
+        quickDecode(decoder, buffer)
+        expect(List("hello")) { written }
     }
-*/
+
+    test("combine with branching") {
+        // 1-byte "type" field indicates if a string or int follows
+        val step = readInt8 { (state, datatype) =>
+            if ((datatype & 0x80) == 0) {
+                readByteBuffer(datatype & 0x7f) { (state, bytes) =>
+                    state.out.write(new String(bytes, "UTF-8"))
+                    End
+                }
+            } else {
+                readInt32 { (state, n) =>
+                    state.out.write(n)
+                    End
+                }
+            }
+        }
+        val decoder = new Decoder(step)
+
+        val buffer = IoBuffer.allocate(14)
+        buffer.order(ByteOrder.BIG_ENDIAN)
+        buffer.put(3.toByte)
+        buffer.put("cat".getBytes)
+        buffer.put(0xff.toByte)
+        buffer.putInt(23)
+        buffer.put(4.toByte)
+        buffer.put("yay!".getBytes)
+        buffer.flip
+        quickDecode(decoder, buffer)
+        expect(List("cat", 23, "yay!")) { written }
+    }
+
 }

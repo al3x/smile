@@ -29,8 +29,19 @@ final object End extends Step {
 
 class ReadBytesStep(getCount: State => Int, process: State => Step) extends Step {
     def apply(state: State): StepResult = {
-        // FIXME: try to cache the count.
         val count = getCount(state)
+        if (state.buffer.limit - state.buffer.position < count) {
+            NEED_DATA
+        } else {
+            state.nextStep = process(state)
+            COMPLETE
+        }
+    }
+}
+
+// when you know the byte count ahead of time, this is probably faster.
+class ReadNBytesStep(count: Int, process: State => Step) extends Step {
+    def apply(state: State): StepResult = {
         if (state.buffer.limit - state.buffer.position < count) {
             NEED_DATA
         } else {
@@ -43,6 +54,19 @@ class ReadBytesStep(getCount: State => Int, process: State => Step) extends Step
 class ReadDelimiterStep(getDelimiter: State => Byte, process: (State, Int) => Step) extends Step {
     def apply(state: State): StepResult = {
         val delimiter = getDelimiter(state)
+        state.buffer.indexOf(delimiter) match {
+            case -1 =>
+                NEED_DATA
+            case n =>
+                state.nextStep = process(state, n - state.buffer.position + 1)
+                COMPLETE
+        }
+    }
+}
+
+// when you know the delimiter ahead of time, this is probably faster.
+class ReadNDelimiterStep(delimiter: Byte, process: (State, Int) => Step) extends Step {
+    def apply(state: State): StepResult = {
         state.buffer.indexOf(delimiter) match {
             case -1 =>
                 NEED_DATA
