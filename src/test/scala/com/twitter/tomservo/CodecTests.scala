@@ -104,25 +104,25 @@ object CodecTests extends Tests {
         val decoder = new Decoder(step)
 
         // partial write gives nothing:
-        decoder.decode(fakeSession, IoBuffer.wrap("partia".getBytes), fakeDecoderOutput)
+        quickDecode(decoder, "partia")
         expect(Nil) { written }
         // overlap write finishes one block and continues buffering:
-        decoder.decode(fakeSession, IoBuffer.wrap("l\nand".getBytes), fakeDecoderOutput)
+        quickDecode(decoder, "l\nand")
         expect(List("partial\n")) { written }
         // overlap write continues to block correctly:
-        decoder.decode(fakeSession, IoBuffer.wrap(" another\nbut the".getBytes), fakeDecoderOutput)
+        quickDecode(decoder, " another\nbut the")
         expect(List("partial\n", "and another\n")) { written }
         // many-block write gives all finished blocks:
-        decoder.decode(fakeSession, IoBuffer.wrap("n\nmany\nnew ones\nbo".getBytes), fakeDecoderOutput)
+        quickDecode(decoder, "n\nmany\nnew ones\nbo")
         expect(List("partial\n", "and another\n", "but then\n", "many\n", "new ones\n")) { written }
         // partial write gives nothing, even with partial buffer:
-        decoder.decode(fakeSession, IoBuffer.wrap("re".getBytes), fakeDecoderOutput)
+        quickDecode(decoder, "re")
         expect(List("partial\n", "and another\n", "but then\n", "many\n", "new ones\n")) { written }
         // exact block closing gives a block:
-        decoder.decode(fakeSession, IoBuffer.wrap("d now\n".getBytes), fakeDecoderOutput)
+        quickDecode(decoder, "d now\n")
         expect(List("partial\n", "and another\n", "but then\n", "many\n", "new ones\n", "bored now\n")) { written }
         // ditto for an exact whole block:
-        decoder.decode(fakeSession, IoBuffer.wrap("bye\n".getBytes), fakeDecoderOutput)
+        quickDecode(decoder, "bye\n")
         expect(List("partial\n", "and another\n", "but then\n", "many\n", "new ones\n", "bored now\n", "bye\n")) { written }
     }
 
