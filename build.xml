@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project name="tomservo" default="install">
     <description> Mina protocol codec toolkit. </description>
-    <import file="ivy/bootstrap.xml" />
+    <import file="ant/bootstrap.xml" />
 </project>
