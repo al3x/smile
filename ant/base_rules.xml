@@ -62,16 +62,16 @@
 
   <!-- COMPILE -->
 
-  <target name="compile-scala-source">
-    <scalac srcdir="${source.dir}" destdir="${target.dir}" force="changed" deprecation="on">
-      <classpath>
-        <path refid="deps.path" />
-      </classpath>
-      <include name="**/*.scala" />
-    </scalac>
+  <target name="find-source">
+    <pathconvert property="build.java" setonempty="false">
+      <fileset dir="${basedir}" includes="src/main/java/**/*.java" />
+    </pathconvert>
+    <pathconvert property="build.scala" setonempty="false">
+      <fileset dir="${basedir}" includes="src/main/scala/**/*.scala" />
+    </pathconvert>
   </target>
 
-  <target name="compile-java-source" if="build.java">
+  <target name="compile-java" if="build.java">
     <javac srcdir="${basedir}/src/main/java" destdir="${target.dir}" deprecation="on">
       <classpath>
         <path refid="deps.path" />
@@ -80,21 +80,19 @@
     </javac>
   </target>
 
-  <target name="compile-gen-java-source" if="build.gen-java">
-    <javac srcdir="${basedir}/src/main/gen-java" destdir="${target.dir}" deprecation="on">
+  <target name="compile-scala" if="build.scala">
+    <scalac srcdir="${source.dir}" destdir="${target.dir}" force="changed" deprecation="on">
       <classpath>
         <path refid="deps.path" />
       </classpath>
-      <include name="**/*.java" />
-    </javac>
+      <include name="**/*.scala" />
+    </scalac>
   </target>
 
-  <tstamp>
-    <format property="build.timestamp" pattern="yyyyMMdd-HHmmss" />
-  </tstamp>
-
-  <!-- create properties file with build info -->
   <target name="write-build-info" if="ivy.extra.buildpackage">
+    <tstamp>
+      <format property="build.timestamp" pattern="yyyyMMdd-HHmmss" />
+    </tstamp>
     <propertyfile file="${target.dir}/${ivy.extra.buildpackage}/build.properties">
       <entry key="name" value="${ivy.module}" />
       <entry key="version" value="${ivy.revision}" />
@@ -102,13 +100,8 @@
     </propertyfile>
   </target>
 
-  <target name="copy-extra-libs" if="libs.extra">
-    <copy todir="${dist.dir}/libs">
-      <path refid="libs.extra" />
-    </copy>
-  </target>
-
-  <target name="compile" depends="prepare,compile-gen-java-source,compile-scala-source,compile-java-source,write-build-info,copy-extra-libs" description="compile java and scala code" />
+  <target name="compile" depends="prepare, find-source, compile-java,
+    compile-scala, write-build-info" description="compile java and scala code" />
 
 
   <!-- TEST -->
