@@ -9,6 +9,7 @@ import scala.collection.mutable
 abstract case class Task
 case class Receive(count: Int) extends Task
 case class Send(data: Array[Byte]) extends Task
+case class Sleep(ms: Int) extends Task
 
 
 class FakeMemcacheServer(tasks: List[Task]) extends Runnable {
@@ -44,6 +45,12 @@ class FakeMemcacheServer(tasks: List[Task]) extends Runnable {
             dataRead += buffer
           case Send(data) =>
             outStream.write(data)
+          case Sleep(n) =>
+            try {
+              Thread.sleep(n)
+            } catch {
+              case x: InterruptedException =>
+            }
         }
       }
     }

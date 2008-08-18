@@ -16,7 +16,7 @@ import org.apache.mina.transport.socket.nio.NioSocketConnector
  * All exceptions thrown from this library will be subclasses of this exception.
  */
 class MemcacheServerException(reason: String) extends IOException(reason)
-
+class MemcacheServerTimeout extends MemcacheServerException("timeout")
 class MemcacheServerOffline extends MemcacheServerException("server is unreachable")
 
 
@@ -53,6 +53,7 @@ class MemcacheServer(hostname: String, port: Int, weight: Int) {
   def get(key: String): Option[Array[Byte]] = {
     serverActor !? Get("get", key) match {
       case ConnectionFailed => throw new MemcacheServerOffline
+      case Timeout => throw new MemcacheServerTimeout
       case GetResponse(values) =>
         values match {
           case Nil => None
@@ -71,6 +72,21 @@ class MemcacheServer(hostname: String, port: Int, weight: Int) {
     }
   }
 
+  def get(keys: Array[String]): Map[String, Array[Byte]] = {
+    serverActor !? Get("get", keys.mkString(" ")) match {
+      case ConnectionFailed => throw new MemcacheServerOffline
+      case Timeout => throw new MemcacheServerTimeout
+      case GetResponse(values) => Map.empty ++ (for (v <- values) yield (v.key, v.data))
+    }
+  }
+
+  def getString(keys: Array[String]): Map[String, String] = {
+    serverActor !? Get("get", keys.mkString(" ")) match {
+      case ConnectionFailed => throw new MemcacheServerOffline
+      case Timeout => throw new MemcacheServerTimeout
+      case GetResponse(values) => Map.empty ++ (for (v <- values) yield (v.key, new String(v.data)))
+    }
+  }
 
   private def connect(): Unit = {
     if (delaying.isDefined && (System.currentTimeMillis < delaying.get)) {
@@ -119,6 +135,7 @@ class MemcacheServer(hostname: String, port: Int, weight: Int) {
   private case class Get(query: String, key: String)
 
   private case object ConnectionFailed
+  private case object Timeout
   private case class GetResponse(values: List[MemcachedResponse.Value])
 
   val serverActor = actor {
@@ -172,7 +189,13 @@ class MemcacheServer(hostname: String, port: Int, weight: Int) {
         log.error(cause, "exception in actor for %s", this)
         disconnect
       case MinaMessage.SessionIdle(status) =>
+        log.error("timeout for %s", this)
+        disconnect
+        sender ! Timeout
       case MinaMessage.SessionClosed =>
+        log.error("disconnected from server for %s", this)
+        disconnect
+        sender ! ConnectionFailed
     }
   }
 }

@@ -4,6 +4,7 @@ import org.apache.mina.core.buffer.IoBuffer
 import org.apache.mina.core.session.IoSession
 import org.apache.mina.filter.codec.{ProtocolCodecFilter, ProtocolEncoder, ProtocolEncoderOutput}
 import com.twitter.tomservo.Steps._
+import net.lag.extensions._
 
 
 abstract sealed class MemcachedResponse
@@ -99,7 +100,7 @@ object MemcacheClientDecoder {
             state.out.write(MemcachedResponse.Value(key, flags, casKey, bytes))
             readByteBuffer(2) { lf =>
               if (new String(lf, "UTF-8") != "\r\n") {
-                throw new ProtocolError("Corrupted VALUE terminator")
+                throw new ProtocolError("Corrupted VALUE terminator: " + lf.hexlify)
               }
               End
             }
