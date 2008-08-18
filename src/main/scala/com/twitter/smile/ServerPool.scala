@@ -15,11 +15,13 @@ class ServerPool {
 
   private var DEFAULT_CONNECT_TIMEOUT = 250
   var retryDelay = 30000
+  var readTimeout = 2000
 
   // note: this will create one thread per ServerPool
   var connector = SocketConnectorHack.get(ServerPool.threadPool)
   connector.setConnectTimeoutMillis(DEFAULT_CONNECT_TIMEOUT)
   connector.getSessionConfig.setTcpNoDelay(true)
+  connector.getSessionConfig.setUseReadOperation(true)
 
   connector.getFilterChain.addLast("codec", MemcacheClientDecoder.filter)
   connector.setHandler(new IoHandlerActorAdapter((session: IoSession) => null))

@@ -15,20 +15,39 @@ object MemcacheServerSpec extends Specification {
 
 
   "MemcacheServer" should {
-    doBefore {
-      server = new FakeMemcacheServer
-      server.start
-    }
-
     doAfter {
       server.stop
     }
 
+
     "connect to localhost" in {
+      server = new FakeMemcacheServer(Nil)
+      server.start
+
       val m = new MemcacheServer("localhost", server.port, 1)
       m.pool = pool
       m.ensureConnected mustBe true
       server.awaitConnection(500) mustBe true
+    }
+
+    "correctly indicate a failed connection" in {
+      server = new FakeMemcacheServer(Nil)
+      server.start
+
+      val m = new MemcacheServer("localhost", server.port + 1, 1)
+      m.pool = pool
+      m.ensureConnected mustBe false
+      server.awaitConnection(500) mustBe false
+    }
+
+    "do a GET" in {
+      server = new FakeMemcacheServer(Receive(9) ::
+        Send("VALUE cat 0 5\r\nhello\r\nEND\r\n".getBytes) :: Nil)
+      server.start
+
+      val m = new MemcacheServer("localhost", server.port, 1)
+      m.pool = pool
+      m.getString("cat") mustEqual "hello"
     }
   }
 }

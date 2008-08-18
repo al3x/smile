@@ -1,15 +1,23 @@
 package com.twitter.smile
 
+import java.io.IOException
 import java.net.InetSocketAddress
-import scala.actors.Actor
+import scala.actors.{Actor, OutputChannel}
 import scala.actors.Actor._
+import scala.collection.mutable
+import com.twitter.tomservo.MemcachedResponse
 import net.lag.extensions._
 import net.lag.logging.Logger
 import org.apache.mina.core.session.IoSession
 import org.apache.mina.transport.socket.nio.NioSocketConnector
 
 
-class MemcacheServerOffline extends Exception
+/**
+ * All exceptions thrown from this library will be subclasses of this exception.
+ */
+class MemcacheServerException(reason: String) extends IOException(reason)
+
+class MemcacheServerOffline extends MemcacheServerException("server is unreachable")
 
 
 class MemcacheServer(hostname: String, port: Int, weight: Int) {
@@ -23,7 +31,7 @@ class MemcacheServer(hostname: String, port: Int, weight: Int) {
   @volatile protected var delaying: Option[Long] = None
 
 
-//  private var 
+//  private var
 
   override def toString() = {
     val status = session match {
@@ -41,6 +49,28 @@ class MemcacheServer(hostname: String, port: Int, weight: Int) {
     }
     "<MemcacheServer %s:%d weight=%d (%s)>".format(hostname, port, weight, status)
   }
+
+  def get(key: String): Option[Array[Byte]] = {
+    serverActor !? Get("get", key) match {
+      case ConnectionFailed => throw new MemcacheServerOffline
+      case GetResponse(values) =>
+        values match {
+          case Nil => None
+          case v :: Nil => Some(v.data)
+          // sanity check:
+          case _ => throw new MemcacheServerException("too many results for single get: " + values.length)
+        }
+    }
+  }
+
+  // for convenience
+  def getString(key: String): String = {
+    get(key) match {
+      case None => ""
+      case Some(data) => new String(data)
+    }
+  }
+
 
   private def connect(): Unit = {
     if (delaying.isDefined && (System.currentTimeMillis < delaying.get)) {
@@ -86,11 +116,27 @@ class MemcacheServer(hostname: String, port: Int, weight: Int) {
 
 
   private case object Stop
+  private case class Get(query: String, key: String)
+
+  private case object ConnectionFailed
+  private case class GetResponse(values: List[MemcachedResponse.Value])
 
   val serverActor = actor {
     loop {
       react {
         case Stop => disconnect; self.exit
+
+        case Get(query, key) =>
+          if (!ensureConnected) {
+            reply(ConnectionFailed)
+          } else {
+            for (s <- session) {
+              s.write(query + " " + key + "\r\n")
+              // mina currently only supports *seconds* here :(
+              s.getConfig.setReaderIdleTime(pool.readTimeout / 1000)
+              waitForGetResponse(sender, new mutable.ListBuffer[MemcachedResponse.Value])
+            }
+          }
 
         // non-interesting (unsolicited) mina messages:
         case MinaMessage.SessionOpened =>
@@ -101,8 +147,32 @@ class MemcacheServer(hostname: String, port: Int, weight: Int) {
           log.error(cause, "exception in actor for %s", this)
           disconnect
         case MinaMessage.SessionIdle(status) =>
+          for (s <- session) {
+            Console.println("got idle")
+            s.getConfig.setReaderIdleTime(0)
+          }
         case MinaMessage.SessionClosed =>
       }
+    }
+  }
+
+  private def waitForGetResponse(sender: OutputChannel[Any], responses: mutable.ListBuffer[MemcachedResponse.Value]): Unit = {
+    react {
+      case MinaMessage.MessageReceived(message) =>
+        message match {
+          case v: MemcachedResponse.Value =>
+            responses += v
+            waitForGetResponse(sender, responses)
+          case MemcachedResponse.EndOfResults =>
+            sender ! GetResponse(responses.toList)
+          case x =>
+            Console.println("got: " + x)
+        }
+      case MinaMessage.ExceptionCaught(cause) =>
+        log.error(cause, "exception in actor for %s", this)
+        disconnect
+      case MinaMessage.SessionIdle(status) =>
+      case MinaMessage.SessionClosed =>
     }
   }
 }
