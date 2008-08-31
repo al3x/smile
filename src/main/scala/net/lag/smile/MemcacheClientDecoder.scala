@@ -8,16 +8,16 @@ import net.lag.naggati.{Decoder, End, ProtocolError}
 import net.lag.naggati.Steps._
 
 
-abstract sealed class MemcachedResponse
+abstract sealed class MemcacheResponse
 
-object MemcachedResponse {
+object MemcacheResponse {
   // 3 types of error that can be returned by the server
-  case object Error extends MemcachedResponse
-  case class ClientError(reason: String) extends MemcachedResponse
-  case class ServerError(reason: String) extends MemcachedResponse
+  case object Error extends MemcacheResponse
+  case class ClientError(reason: String) extends MemcacheResponse
+  case class ServerError(reason: String) extends MemcacheResponse
 
   // when fetching stats or values:
-  case class Value(key: String, flags: Int, casKey: String, data: Array[Byte]) extends MemcachedResponse {
+  case class Value(key: String, flags: Int, casKey: String, data: Array[Byte]) extends MemcacheResponse {
     // FIXME: why doesn't scala do array equals correctly?
     override def equals(obj: Any) = {
       obj match {
@@ -28,22 +28,22 @@ object MemcachedResponse {
       }
     }
   }
-  case class StatItem(key: String, value: String) extends MemcachedResponse
-  case object EndOfResults extends MemcachedResponse
+  case class StatItem(key: String, value: String) extends MemcacheResponse
+  case object EndOfResults extends MemcacheResponse
 
   // set/add/replace/append/prepend/cas/delete/incr/decr:
-  case object NotFound extends MemcachedResponse
+  case object NotFound extends MemcacheResponse
 
   // set/add/replace/append/prepend/cas:
-  case object Stored extends MemcachedResponse
-  case object NotStored extends MemcachedResponse
-  case object Exists extends MemcachedResponse
+  case object Stored extends MemcacheResponse
+  case object NotStored extends MemcacheResponse
+  case object Exists extends MemcacheResponse
 
   // delete:
-  case object Deleted extends MemcachedResponse
+  case object Deleted extends MemcacheResponse
 
   // incr/decr:
-  case class NewValue(data: Long) extends MemcachedResponse
+  case class NewValue(data: Long) extends MemcacheResponse
 }
 
 
@@ -52,39 +52,39 @@ object MemcacheClientDecoder {
     val parts = line.split(" ", 2)
     parts(0) match {
       case "ERROR" =>
-        state.out.write(MemcachedResponse.Error)
+        state.out.write(MemcacheResponse.Error)
         End
 
       case "CLIENT_ERROR" =>
-        state.out.write(MemcachedResponse.ClientError(if (parts.length == 2) parts(1) else "(unknown)"))
+        state.out.write(MemcacheResponse.ClientError(if (parts.length == 2) parts(1) else "(unknown)"))
         End
 
       case "SERVER_ERROR" =>
-        state.out.write(MemcachedResponse.ServerError(if (parts.length == 2) parts(1) else "(unknown)"))
+        state.out.write(MemcacheResponse.ServerError(if (parts.length == 2) parts(1) else "(unknown)"))
         End
 
       case "NOT_FOUND" =>
-        state.out.write(MemcachedResponse.NotFound)
+        state.out.write(MemcacheResponse.NotFound)
         End
 
       case "STORED" =>
-        state.out.write(MemcachedResponse.Stored)
+        state.out.write(MemcacheResponse.Stored)
         End
 
       case "NOT_STORED" =>
-        state.out.write(MemcachedResponse.NotStored)
+        state.out.write(MemcacheResponse.NotStored)
         End
 
       case "EXISTS" =>
-        state.out.write(MemcachedResponse.Exists)
+        state.out.write(MemcacheResponse.Exists)
         End
 
       case "DELETED" =>
-        state.out.write(MemcachedResponse.Deleted)
+        state.out.write(MemcacheResponse.Deleted)
         End
 
       case "END" =>
-        state.out.write(MemcachedResponse.EndOfResults)
+        state.out.write(MemcacheResponse.EndOfResults)
         End
 
       case "VALUE" =>
@@ -98,7 +98,7 @@ object MemcacheClientDecoder {
           val bytes = subParts(2).toInt
           val casKey = if (subParts.length == 4) subParts(3) else ""
           readByteBuffer(bytes) { bytes =>
-            state.out.write(MemcachedResponse.Value(key, flags, casKey, bytes))
+            state.out.write(MemcacheResponse.Value(key, flags, casKey, bytes))
             readByteBuffer(2) { lf =>
               if (new String(lf, "UTF-8") != "\r\n") {
                 throw new ProtocolError("Corrupted VALUE terminator: " + lf.hexlify)
@@ -114,7 +114,7 @@ object MemcacheClientDecoder {
       // incr/decr response:
       case value =>
         try {
-          state.out.write(MemcachedResponse.NewValue(value.toLong))
+          state.out.write(MemcacheResponse.NewValue(value.toLong))
           End
         } catch {
           case e: NumberFormatException =>

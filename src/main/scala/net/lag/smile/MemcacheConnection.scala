@@ -1,6 +1,5 @@
 package net.lag.smile
 
-import java.io.IOException
 import java.net.InetSocketAddress
 import scala.actors.{Actor, OutputChannel}
 import scala.actors.Actor._
@@ -10,14 +9,6 @@ import net.lag.logging.Logger
 import net.lag.naggati.{IoHandlerActorAdapter, MinaMessage}
 import org.apache.mina.core.session.IoSession
 import org.apache.mina.transport.socket.nio.NioSocketConnector
-
-
-/**
- * All exceptions thrown from this library will be subclasses of this exception.
- */
-class MemcacheServerException(reason: String) extends IOException(reason)
-class MemcacheServerTimeout extends MemcacheServerException("timeout")
-class MemcacheServerOffline extends MemcacheServerException("server is unreachable")
 
 
 /**
@@ -48,13 +39,15 @@ class MemcacheConnection(hostname: String, port: Int, weight: Int) {
         }
       case Some(s) => "connected"
     }
-    "<MemcacheServer %s:%d weight=%d (%s)>".format(hostname, port, weight, status)
+    "<MemcacheConnection %s:%d weight=%d (%s)>".format(hostname, port, weight, status)
   }
 
+  @throws(classOf[MemcacheServerException])
   def get(key: String): Option[Array[Byte]] = {
     serverActor !? Get("get", key) match {
       case ConnectionFailed => throw new MemcacheServerOffline
       case Timeout => throw new MemcacheServerTimeout
+      case Error(description) => throw new MemcacheServerException(description)
       case GetResponse(values) =>
         values match {
           case Nil => None
@@ -77,6 +70,7 @@ class MemcacheConnection(hostname: String, port: Int, weight: Int) {
     serverActor !? Get("get", keys.mkString(" ")) match {
       case ConnectionFailed => throw new MemcacheServerOffline
       case Timeout => throw new MemcacheServerTimeout
+      case Error(description) => throw new MemcacheServerException(description)
       case GetResponse(values) => Map.empty ++ (for (v <- values) yield (v.key, v.data))
     }
   }
@@ -85,9 +79,17 @@ class MemcacheConnection(hostname: String, port: Int, weight: Int) {
     serverActor !? Get("get", keys.mkString(" ")) match {
       case ConnectionFailed => throw new MemcacheServerOffline
       case Timeout => throw new MemcacheServerTimeout
+      case Error(description) => throw new MemcacheServerException(description)
       case GetResponse(values) => Map.empty ++ (for (v <- values) yield (v.key, new String(v.data)))
     }
   }
+
+  def set(key: String, value: Array[Byte]): Unit = {
+    
+  }
+
+
+  //  ----------  implementation
 
   private def connect(): Unit = {
     if (delaying.isDefined && (System.currentTimeMillis < delaying.get)) {
@@ -130,15 +132,25 @@ class MemcacheConnection(hostname: String, port: Int, weight: Int) {
   }
 
 
+  //  ----------  actor
+
   private case object Stop
   private case class Get(query: String, key: String)
+  private case class Store(query: String, key: String, flags: Int, expiry: Int, data: Array[Byte])
 
   private case object ConnectionFailed
+  private case class Error(description: String)
   private case object Timeout
-  private case class GetResponse(values: List[MemcachedResponse.Value])
+  private case class GetResponse(values: List[MemcacheResponse.Value])
+
+  // values collected from a get/gets
+  private val values = new mutable.ListBuffer[MemcacheResponse.Value]
+
 
   val serverActor = actor {
     loop {
+      values.clear
+
       react {
         case Stop => disconnect; self.exit
 
@@ -150,7 +162,19 @@ class MemcacheConnection(hostname: String, port: Int, weight: Int) {
               s.write(query + " " + key + "\r\n")
               // mina currently only supports *seconds* here :(
               s.getConfig.setReaderIdleTime(pool.readTimeout / 1000)
-              waitForGetResponse(sender, new mutable.ListBuffer[MemcachedResponse.Value])
+              waitForGetResponse(sender)
+            }
+          }
+
+        case Store(query, key, flags, expiry, data) =>
+          if (!ensureConnected) {
+            reply(ConnectionFailed)
+          } else {
+            for (s <- session) {
+              s.write(query + " " + key + " " + flags + " " + expiry + " " + data.length + "\r\n")
+              // mina currently only supports *seconds* here :(
+              s.getConfig.setReaderIdleTime(pool.readTimeout / 1000)
+              waitForStoreResponse(sender)
             }
           }
 
@@ -172,19 +196,15 @@ class MemcacheConnection(hostname: String, port: Int, weight: Int) {
     }
   }
 
-  private def waitForGetResponse(sender: OutputChannel[Any],
-    responses: mutable.ListBuffer[MemcachedResponse.Value]): Unit = {
+  /**
+   * Handle mina messages on this connection while waiting for a response from the memcache
+   * server. Timeouts and disconnects are handled too. Any response is passed into the
+   * handler block.
+   */
+  private def waitForResponse(sender: OutputChannel[Any])(handler: AnyRef => Unit) = {
     react {
       case MinaMessage.MessageReceived(message) =>
-        message match {
-          case v: MemcachedResponse.Value =>
-            responses += v
-            waitForGetResponse(sender, responses)
-          case MemcachedResponse.EndOfResults =>
-            sender ! GetResponse(responses.toList)
-          case x =>
-            Console.println("got: " + x)
-        }
+        handler(message)
       case MinaMessage.ExceptionCaught(cause) =>
         log.error(cause, "exception in actor for %s", this)
         disconnect
@@ -196,6 +216,40 @@ class MemcacheConnection(hostname: String, port: Int, weight: Int) {
         log.error("disconnected from server for %s", this)
         disconnect
         sender ! ConnectionFailed
+    }
+  }
+
+  private def waitForGetResponse(sender: OutputChannel[Any]): Unit = {
+    waitForResponse(sender) { message =>
+      message match {
+        case v: MemcacheResponse.Value =>
+          values += v
+          waitForGetResponse(sender)
+        case MemcacheResponse.EndOfResults =>
+          sender ! GetResponse(values.toList)
+        case MemcacheResponse.Error => sender ! Error("error")
+        case MemcacheResponse.ClientError(x) => sender ! Error("client error: " + x)
+        case MemcacheResponse.ServerError(x) => sender ! Error("server error: " + x)
+        case x =>
+          Console.println("got: " + x)
+      }
+    }
+  }
+
+  private def waitForStoreResponse(sender: OutputChannel[Any]): Unit = {
+    waitForResponse(sender) { message =>
+      message match {
+        case v: MemcacheResponse.Value =>
+          values += v
+          waitForGetResponse(sender)
+        case MemcacheResponse.EndOfResults =>
+          sender ! GetResponse(values.toList)
+        case MemcacheResponse.Error => sender ! Error("error")
+        case MemcacheResponse.ClientError(x) => sender ! Error("client error: " + x)
+        case MemcacheResponse.ServerError(x) => sender ! Error("server error: " + x)
+        case x =>
+          Console.println("got: " + x)
+      }
     }
   }
 }

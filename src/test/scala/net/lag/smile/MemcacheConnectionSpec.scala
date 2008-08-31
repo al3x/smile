@@ -93,5 +93,16 @@ object MemcacheConnectionSpec extends Specification {
       m.pool.readTimeout = 1000
       m.getString("cat") must throwA(new MemcacheServerTimeout)
     }
+
+    "throw an exception for a bad server after a 'get'" in {
+      server = new FakeMemcacheConnection(Receive(9) ::
+        Send("CLIENT_ERROR i feel ill\r\n".getBytes) :: Nil)
+      server.start
+
+      val m = new MemcacheConnection("localhost", server.port, 1)
+      m.pool = pool
+      m.getString("cat") must throwA(new MemcacheServerException(""))
+    }
+
   }
 }
