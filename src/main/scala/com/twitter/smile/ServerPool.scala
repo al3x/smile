@@ -8,7 +8,7 @@ import org.apache.mina.filter.codec.{ProtocolCodecFilter, ProtocolEncoder, Proto
 
 
 /**
- * Pool of memcache servers, and their shared config.
+ * Pool of memcache server connections, and their shared config.
  */
 class ServerPool {
   var servers: Array[MemcacheServer] = Array()
@@ -26,11 +26,8 @@ class ServerPool {
   connector.getFilterChain.addLast("codec", MemcacheClientDecoder.filter)
   connector.setHandler(new IoHandlerActorAdapter((session: IoSession) => null))
 
-/*  acceptor.getFilterChain().addLast( "logger", new LoggingFilter() );
-  acceptor.getFilterChain().addLast( "codec", new ProtocolCodecFilter( new TextLineCodecFactory( Charset.forName( "UTF-8" ))));
+//  acceptor.getFilterChain().addLast( "logger", new LoggingFilter() );
 
-  acceptor.setHandler(  new TimeServerHandler() );
-*/
 }
 
 object ServerPool {

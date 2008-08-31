@@ -20,7 +20,10 @@ class MemcacheServerTimeout extends MemcacheServerException("timeout")
 class MemcacheServerOffline extends MemcacheServerException("server is unreachable")
 
 
-class MemcacheServer(hostname: String, port: Int, weight: Int) {
+/**
+ * Connection to and configuration for a memcache server, and an actor for handling requests.
+ */
+class MemcacheConnection(hostname: String, port: Int, weight: Int) {
   var pool: ServerPool = null
 
   val log = Logger.get
@@ -30,8 +33,6 @@ class MemcacheServer(hostname: String, port: Int, weight: Int) {
   // if the last connection attempt failed, this contains the time we should try next:
   @volatile protected var delaying: Option[Long] = None
 
-
-//  private var
 
   override def toString() = {
     val status = session match {
@@ -128,8 +129,6 @@ class MemcacheServer(hostname: String, port: Int, weight: Int) {
     session = None
   }
 
-//  private def set(command: String, )
-
 
   private case object Stop
   private case class Get(query: String, key: String)
@@ -173,7 +172,8 @@ class MemcacheServer(hostname: String, port: Int, weight: Int) {
     }
   }
 
-  private def waitForGetResponse(sender: OutputChannel[Any], responses: mutable.ListBuffer[MemcachedResponse.Value]): Unit = {
+  private def waitForGetResponse(sender: OutputChannel[Any],
+    responses: mutable.ListBuffer[MemcachedResponse.Value]): Unit = {
     react {
       case MinaMessage.MessageReceived(message) =>
         message match {

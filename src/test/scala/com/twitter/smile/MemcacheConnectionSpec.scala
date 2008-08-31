@@ -8,7 +8,7 @@ import org.apache.mina.filter.codec._
 import org.specs._
 
 
-object MemcacheServerSpec extends Specification {
+object MemcacheConnectionSpec extends Specification {
 
   val pool = new ServerPool
   var server: FakeMemcacheServer = null
