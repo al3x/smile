@@ -1,4 +1,4 @@
-package com.twitter.smile;
+package net.lag.smile;
 
 import java.util.concurrent.*;
 import org.apache.mina.transport.socket.*;

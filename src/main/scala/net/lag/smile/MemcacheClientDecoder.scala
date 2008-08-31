@@ -1,10 +1,11 @@
-package com.twitter.tomservo
+package net.lag.smile
 
 import org.apache.mina.core.buffer.IoBuffer
 import org.apache.mina.core.session.IoSession
 import org.apache.mina.filter.codec.{ProtocolCodecFilter, ProtocolEncoder, ProtocolEncoderOutput}
-import com.twitter.tomservo.Steps._
 import net.lag.extensions._
+import net.lag.naggati.{Decoder, End, ProtocolError}
+import net.lag.naggati.Steps._
 
 
 abstract sealed class MemcachedResponse

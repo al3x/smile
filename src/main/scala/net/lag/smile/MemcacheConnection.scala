@@ -1,13 +1,13 @@
-package com.twitter.smile
+package net.lag.smile
 
 import java.io.IOException
 import java.net.InetSocketAddress
 import scala.actors.{Actor, OutputChannel}
 import scala.actors.Actor._
 import scala.collection.mutable
-import com.twitter.tomservo.MemcachedResponse
 import net.lag.extensions._
 import net.lag.logging.Logger
+import net.lag.naggati.{IoHandlerActorAdapter, MinaMessage}
 import org.apache.mina.core.session.IoSession
 import org.apache.mina.transport.socket.nio.NioSocketConnector
 

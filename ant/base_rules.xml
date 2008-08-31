@@ -5,7 +5,7 @@
 
   <!--
     primary targets:
-      clean, prepare, compile, test, docs, install
+      clean, prepare, compile, test, docs, package
 
     tests are only built & run if:
       - ivy.xml defines "e:testclass"
@@ -24,8 +24,7 @@
     <delete dir="dist" />
   </target>
 
-  <target name="clean-ivy" description="erase ivy cache of downloaded packages">
-    <delete dir="${ivy.jar.dir}"/>
+  <target name="clean-ivy" depends="prepare" description="erase ivy cache of downloaded packages">
     <ivy:cleancache />
   </target>
 
@@ -93,7 +92,11 @@
     <tstamp>
       <format property="build.timestamp" pattern="yyyyMMdd-HHmmss" />
     </tstamp>
-    <propertyfile file="${target.dir}/${ivy.extra.buildpackage}/build.properties">
+    <pathconvert property="build.properties.path">
+      <path location="${ivy.extra.buildpackage}" />
+      <unpackagemapper from="${basedir}/*" to="${target.dir}/*" />
+    </pathconvert>
+    <propertyfile file="${build.properties.path}/build.properties">
       <entry key="name" value="${ivy.module}" />
       <entry key="version" value="${ivy.revision}" />
       <entry key="build_name" value="${build.timestamp}" />
@@ -132,7 +135,7 @@
 
   <!-- DOCS -->
 
-  <target name="vscaladoc" depends="prepare">
+  <target name="vscaladoc" depends="prepare" unless="skip.docs">
     <delete dir="${docs.target.dir}/scaladoc" />
     <mkdir dir="${docs.target.dir}/scaladoc" />
     <pathconvert property="doc.sources" pathsep=" ">
@@ -200,7 +203,7 @@
     </jar>
   </target>
 
-  <target name="install" depends="test,make-non-executable-jar,make-executable-jar,docs" description="build complete jar(s) and docs">
+  <target name="package" depends="test,make-non-executable-jar,make-executable-jar,docs" description="build complete jar(s) and docs">
     <ivy:makepom ivyfile="${basedir}/ivy/ivy.xml" pomfile="${dist.dir}/${ivy.module}-${ivy.revision}.pom" />
     <ivy:deliver conf="*(public)" />
   </target>
@@ -208,8 +211,8 @@
 
   <!-- RELEASE -->
 
-  <target name="release" depends="install">
-    <ivy:publish resolver="push" overwrite="true">
+  <target name="release" depends="package">
+    <ivy:publish resolver="push-local" overwrite="true">
       <artifacts pattern="${dist.dir}/[artifact]-[revision].[ext]" />
     </ivy:publish>
     <copy file="INSTALL" todir="${dist.dir}" failonerror="false" />
@@ -226,6 +229,12 @@
       basedir="${basedir}/dist"
       includes="${ivy.module}-${ivy.revision}/**"
       excludes="${ivy.module}-${ivy.revision}/libs/**" />
+  </target>
+
+  <target name="push" depends="package">
+    <ivy:publish resolver="push" overwrite="true">
+      <artifacts pattern="${dist.dir}/[artifact]-[revision].[ext]" />
+    </ivy:publish>
   </target>
 
 </project>

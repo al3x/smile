@@ -1,4 +1,4 @@
-package com.twitter.smile
+package net.lag.smile
 
 import java.io.IOException
 import java.net.ServerSocket
@@ -12,7 +12,7 @@ case class Send(data: Array[Byte]) extends Task
 case class Sleep(ms: Int) extends Task
 
 
-class FakeMemcacheServer(tasks: List[Task]) extends Runnable {
+class FakeMemcacheConnection(tasks: List[Task]) extends Runnable {
   val socket = new ServerSocket(0, 100)
   val port = socket.getLocalPort
 

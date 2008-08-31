@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="tomservo" default="install">
-    <description> Mina protocol codec toolkit. </description>
-    <import file="ant/bootstrap.xml" />
+<project name="smile" default="package">
+  <description>Memcache library based on actors</description>
+  <import file="ant/bootstrap.xml" />
+  <property name="skip.docs" value="true" />
 </project>

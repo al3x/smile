@@ -1,6 +1,5 @@
-package com.twitter
+package net.lag.smile
 
-import com.twitter.tomservo._
 import org.specs.runner.SpecsFileRunner
 
 

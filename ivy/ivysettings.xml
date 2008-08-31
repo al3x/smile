@@ -1,15 +1,21 @@
 <ivysettings>
-    <settings defaultResolver="chain-repos" />
-    <resolvers>
-        <chain name="chain-repos" returnFirst="true">
-            <url name="scala-tools.org" m2compatible="true">
-                <artifact pattern="http://scala-tools.org/repo-releases/[organisation]/[module]/[revision]/[artifact]-[revision].[ext]" />
-            </url>
-            <!-- look in lag.net before maven2, because the pom file on maven2 for mina 2.0.0-M2 is corrupt -->
-            <url name="lag.net" m2compatible="true">
-                <artifact pattern="http://www.lag.net/repo/[organisation]/[module]/[revision]/[artifact]-[revision].[ext]" />
-            </url>
-            <ibiblio name="maven2" m2compatible="true" />
-        </chain>
-    </resolvers>
+  <settings defaultResolver="chain-repos" />
+  <resolvers>
+    <chain name="chain-repos" returnFirst="true">
+      <url name="scala-tools.org" m2compatible="true">
+        <artifact pattern="http://scala-tools.org/repo-releases/[organisation]/[module]/[revision]/[artifact]-[revision].[ext]" />
+      </url>
+      <!-- look in lag.net before maven2, because the pom file on maven2 for mina 2.0.0-M2 is corrupt -->
+      <url name="lag.net" m2compatible="true">
+        <artifact pattern="http://www.lag.net/repo/[organisation]/[module]/[revision]/[artifact]-[revision].[ext]" />
+      </url>
+      <ibiblio name="maven2" m2compatible="true" />
+    </chain>
+    <filesystem name="push-local" m2compatible="true" transactional="false">
+      <artifact pattern="${basedir}/dist/repo/[organisation]/[module]/[revision]/[artifact]-[revision].[ext]" />
+    </filesystem>
+    <sftp name="push" m2compatible="true" keyFile="/Users/robey/.ssh/id_rsa">
+      <artifact pattern="sftp://robey@green.lag.net/web/repo/[organisation]/[module]/[revision]/[artifact]-[revision].[ext]" />
+    </sftp>
+  </resolvers>
 </ivysettings>

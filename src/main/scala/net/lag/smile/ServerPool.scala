@@ -1,17 +1,17 @@
-package com.twitter.smile
+package net.lag.smile
 
-import java.util.concurrent.Executors
+import net.lag.naggati.IoHandlerActorAdapter
 import org.apache.mina.core.session.{IdleStatus, IoSession}
-import org.apache.mina.transport.socket.nio.{NioProcessor, NioSocketConnector}
-import com.twitter.tomservo.{Decoder, MemcacheClientDecoder}
 import org.apache.mina.filter.codec.{ProtocolCodecFilter, ProtocolEncoder, ProtocolEncoderOutput}
+import org.apache.mina.transport.socket.nio.{NioProcessor, NioSocketConnector}
+import java.util.concurrent.Executors
 
 
 /**
  * Pool of memcache server connections, and their shared config.
  */
 class ServerPool {
-  var servers: Array[MemcacheServer] = Array()
+  var connections: Array[MemcacheConnection] = Array()
 
   private var DEFAULT_CONNECT_TIMEOUT = 250
   var retryDelay = 30000
