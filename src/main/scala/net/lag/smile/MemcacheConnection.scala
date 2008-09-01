@@ -84,8 +84,16 @@ class MemcacheConnection(hostname: String, port: Int, weight: Int) {
     }
   }
 
-  def set(key: String, value: Array[Byte]): Unit = {
-    
+  @throws(classOf[MemcacheServerException])
+  def set(key: String, value: Array[Byte], flags: Int, expiry: Int): Unit = {
+    serverActor !? Store("set", key, flags, expiry, value) match {
+      case ConnectionFailed => throw new MemcacheServerOffline
+      case Timeout => throw new MemcacheServerTimeout
+      case Error(description) => throw new MemcacheServerException(description)
+      case MemcacheResponse.Stored =>
+      case MemcacheResponse.NotStored => throw new NotStoredException
+      case x => throw new MemcacheServerException("unexpected: " + x)
+    }
   }
 
 
@@ -172,6 +180,8 @@ class MemcacheConnection(hostname: String, port: Int, weight: Int) {
           } else {
             for (s <- session) {
               s.write(query + " " + key + " " + flags + " " + expiry + " " + data.length + "\r\n")
+              s.write(data)
+              s.write("\r\n")
               // mina currently only supports *seconds* here :(
               s.getConfig.setReaderIdleTime(pool.readTimeout / 1000)
               waitForStoreResponse(sender)
@@ -230,8 +240,7 @@ class MemcacheConnection(hostname: String, port: Int, weight: Int) {
         case MemcacheResponse.Error => sender ! Error("error")
         case MemcacheResponse.ClientError(x) => sender ! Error("client error: " + x)
         case MemcacheResponse.ServerError(x) => sender ! Error("server error: " + x)
-        case x =>
-          Console.println("got: " + x)
+        case x => sender ! Error("unexpected: " + x)
       }
     }
   }
@@ -239,16 +248,10 @@ class MemcacheConnection(hostname: String, port: Int, weight: Int) {
   private def waitForStoreResponse(sender: OutputChannel[Any]): Unit = {
     waitForResponse(sender) { message =>
       message match {
-        case v: MemcacheResponse.Value =>
-          values += v
-          waitForGetResponse(sender)
-        case MemcacheResponse.EndOfResults =>
-          sender ! GetResponse(values.toList)
         case MemcacheResponse.Error => sender ! Error("error")
         case MemcacheResponse.ClientError(x) => sender ! Error("client error: " + x)
         case MemcacheResponse.ServerError(x) => sender ! Error("server error: " + x)
-        case x =>
-          Console.println("got: " + x)
+        case item => sender ! item
       }
     }
   }

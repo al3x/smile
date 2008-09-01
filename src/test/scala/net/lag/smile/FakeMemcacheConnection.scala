@@ -67,4 +67,8 @@ class FakeMemcacheConnection(tasks: List[Task]) extends Runnable {
   def awaitConnection(msec: Int) = {
     gotConnection.await(msec, TimeUnit.MILLISECONDS)
   }
+
+  def fromClient(): List[String] = {
+    dataRead map (new String(_)) toList
+  }
 }
