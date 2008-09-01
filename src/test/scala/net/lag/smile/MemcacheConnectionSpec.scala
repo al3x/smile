@@ -120,6 +120,16 @@ object MemcacheConnectionSpec extends Specification {
         m.set("cat", "hello".getBytes, 0, 500)
         server.fromClient mustEqual List("set cat 0 500 5\r\nhello\r\n")
       }
+
+      "with server error" in {
+        server = new FakeMemcacheConnection(Receive(24) :: Send("NOT_STORED\r\n".getBytes) :: Nil)
+        server.start
+
+        val m = new MemcacheConnection("localhost", server.port, 1)
+        m.pool = pool
+        m.set("cat", "hello".getBytes, 0, 500) must throwA(new MemcacheServerException(""))
+        server.fromClient mustEqual List("set cat 0 500 5\r\nhello\r\n")
+      }
     }
   }
 }
