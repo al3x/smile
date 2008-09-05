@@ -103,8 +103,17 @@
     </propertyfile>
   </target>
 
+  <target name="copy-resources">
+    <copy todir="${test.target.dir}/resources" failonerror="false">
+      <fileset dir="${basedir}/src/resources" />
+    </copy>
+    <copy todir="${dist.dir}/resources" failonerror="false">
+      <fileset dir="${basedir}/src/resources" />
+    </copy>
+  </target>
+
   <target name="compile" depends="prepare, find-source, compile-java,
-    compile-scala, write-build-info" description="compile java and scala code" />
+    compile-scala, write-build-info, copy-resources" description="compile java and scala code" />
 
 
   <!-- TEST -->
