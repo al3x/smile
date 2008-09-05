@@ -11,7 +11,7 @@ import java.util.concurrent.Executors
  * Pool of memcache server connections, and their shared config.
  */
 class ServerPool {
-  var connections: Array[MemcacheConnection] = Array()
+  var servers: Array[MemcacheConnection] = Array()
 
   private var DEFAULT_CONNECT_TIMEOUT = 250
   var retryDelay = 30000
@@ -32,4 +32,25 @@ class ServerPool {
 
 object ServerPool {
   var threadPool = Executors.newCachedThreadPool
+
+  val DEFAULT_PORT = 11211
+  val DEFAULT_WEIGHT = 1
+
+  /**
+   * Make a new MemcacheConnection out of a description string. A description string is:
+   * <hostname> [ ":" <port> [ " " <weight> ]]
+   * The default port is 11211 and the default weight is 1.
+   */
+  def makeConnection(desc: String) = {
+    desc.split("[: ]").toList match {
+      case hostname :: Nil =>
+        new MemcacheConnection(hostname, DEFAULT_PORT, DEFAULT_WEIGHT)
+      case hostname :: port :: Nil =>
+        new MemcacheConnection(hostname, port.toInt, DEFAULT_WEIGHT)
+      case hostname :: port :: weight :: Nil =>
+        new MemcacheConnection(hostname, port.toInt, weight.toInt)
+      case _ =>
+        throw new IllegalArgumentException
+    }
+  }
 }
