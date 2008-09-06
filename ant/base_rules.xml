@@ -105,10 +105,10 @@
 
   <target name="copy-resources">
     <copy todir="${test.target.dir}/resources" failonerror="false">
-      <fileset dir="${basedir}/src/resources" />
+      <fileset dir="${basedir}/src/test/resources" />
     </copy>
     <copy todir="${dist.dir}/resources" failonerror="false">
-      <fileset dir="${basedir}/src/resources" />
+      <fileset dir="${basedir}/src/main/resources" />
     </copy>
   </target>
 
