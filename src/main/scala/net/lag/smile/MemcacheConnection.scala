@@ -197,8 +197,8 @@ class MemcacheConnection(val hostname: String, val port: Int, val weight: Int) {
           log.error(cause, "exception in actor for %s", this)
           disconnect
         case MinaMessage.SessionIdle(status) =>
+          // probably leftover from a previous timeout.
           for (s <- session) {
-            Console.println("got idle")
             s.getConfig.setReaderIdleTime(0)
           }
         case MinaMessage.SessionClosed =>
