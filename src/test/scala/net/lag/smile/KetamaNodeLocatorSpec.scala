@@ -1,5 +1,6 @@
 package net.lag.smile
 
+import net.lag.configgy.Configgy
 import org.specs._
 import scala.collection.mutable
 import java.io.{BufferedReader, InputStreamReader}
@@ -51,6 +52,38 @@ object KetamaNodeLocatorSpec extends Specification {
           println("testcase line " + (count + 1))
         }
         connection.hostname mustEqual testcase(3)
+        count += 1
+      }
+    }
+
+    "be compatible with a test on a very large server list" in {
+      ClassLoader.getSystemClassLoader.getResourceAsStream("resources/ketama_results").read()
+      Configgy.configureFromResource("resources/test1.conf")
+      val pool = ServerPool.fromConfig(Configgy.config.getAttributes("memcache").get)
+      val ketama = new KetamaNodeLocator
+      ketama.serverPool = pool
+      ketama
+
+      val expected = List(
+        List("apple", "daemon003"),
+        List("beanie baby", "twitter-web056"),
+        List("california", "twitter-web050"),
+        List("dead dog", "daemon017"),
+        List("entrenched", "twitter-web044"),
+        List("FFS", "twitter-web066"),
+        List("GIGO", "twitter-web068"),
+        List("hello sailor", "twitter-web046"),
+        List("inner universe", "twitter-web044"),
+        List("jump!", "daemon009"),
+        List("kangaroo meat", "twitter-web023")
+        )
+      var count = 0
+      for (testcase <- expected) {
+        val connection = ketama.findNode(testcase(0).getBytes("utf-8"))
+        if (connection.hostname != testcase(1)) {
+          println("testcase line " + (count + 1))
+        }
+        connection.hostname mustEqual testcase(1)
         count += 1
       }
     }
