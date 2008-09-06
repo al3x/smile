@@ -1,5 +1,6 @@
 package net.lag.smile
 
+import net.lag.configgy.AttributeMap
 import net.lag.naggati.IoHandlerActorAdapter
 import org.apache.mina.core.session.{IdleStatus, IoSession}
 import org.apache.mina.filter.codec.{ProtocolCodecFilter, ProtocolEncoder, ProtocolEncoderOutput}
@@ -52,5 +53,19 @@ object ServerPool {
       case _ =>
         throw new IllegalArgumentException
     }
+  }
+
+  def fromConfig(attr: AttributeMap) = {
+    val pool = new ServerPool
+    for (serverList <- attr.getStringList("servers")) {
+      pool.servers = for (desc <- serverList) yield makeConnection(desc)
+    }
+    for (n <- attr.getInt("retry_delay")) {
+      pool.retryDelay = n * 1000
+    }
+    for (n <- attr.getInt("read_timeout")) {
+      pool.readTimeout = n * 1000
+    }
+    pool
   }
 }
