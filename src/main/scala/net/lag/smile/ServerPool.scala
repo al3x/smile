@@ -64,6 +64,9 @@ object ServerPool {
     val pool = new ServerPool
     for (serverList <- attr.getStringList("servers")) {
       pool.servers = for (desc <- serverList) yield makeConnection(desc)
+      for (s <- pool.servers) {
+        s.pool = pool
+      }
     }
     for (n <- attr.getInt("retry_delay")) {
       pool.retryDelay = n * 1000
