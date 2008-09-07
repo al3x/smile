@@ -103,4 +103,21 @@ object KeyHasher {
       buffer.getInt.toLong & 0xffffffffL
     }
   }
+
+  /**
+   * Return one of the key hashing algorithms by name. This is used to configure a memcache
+   * client from a config file.
+   */
+  def byName(name: String): KeyHasher = {
+    name match {
+      case "fnv" => FNV1_32
+      case "fnv1" => FNV1_32
+      case "fnv1-32" => FNV1_32
+      case "fnv1a-32" => FNV1A_32
+      case "fnv1-64" => FNV1_64
+      case "fnv1a-64" => FNV1A_64
+      case "ketama" => KETAMA
+      case x => throw new IllegalArgumentException("unknown hash: " + x)
+    }
+  }
 }
