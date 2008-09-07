@@ -13,6 +13,17 @@ object MemcacheConnectionSpec extends Specification {
   val pool = new ServerPool
   var server: FakeMemcacheConnection = null
 
+  def data(v: Option[MemcacheResponse.Value]) = {
+    v match {
+      case None => ""
+      case Some(value) => new String(value.data, "utf-8")
+    }
+  }
+
+  def data(map: Map[String, MemcacheResponse.Value]) = {
+    Map.empty[String, String] ++ (for ((k, v) <- map) yield (k, new String(v.data, "utf-8")))
+  }
+
 
   "MemcacheConnection" should {
     doAfter {
@@ -48,7 +59,7 @@ object MemcacheConnectionSpec extends Specification {
 
         val m = new MemcacheConnection("localhost", server.port, 1)
         m.pool = pool
-        m.getString("cat") mustEqual "hello"
+        data(m.get("cat")) mustEqual "hello"
         server.fromClient mustEqual List("get cat\r\n")
       }
 
@@ -69,7 +80,7 @@ object MemcacheConnectionSpec extends Specification {
 
         val m = new MemcacheConnection("localhost", server.port, 1)
         m.pool = pool
-        m.getString(Array("cat", "dog")) mustEqual Map("cat" -> "hello", "dog" -> "goodbye")
+        data(m.get(Array("cat", "dog"))) mustEqual Map("cat" -> "hello", "dog" -> "goodbye")
         server.fromClient mustEqual List("get cat dog\r\n")
       }
 
@@ -83,8 +94,8 @@ object MemcacheConnectionSpec extends Specification {
 
         val m = new MemcacheConnection("localhost", server.port, 1)
         m.pool = pool
-        m.getString("cat") mustEqual "hello"
-        m.getString("dog") mustEqual "goodbye"
+        data(m.get("cat")) mustEqual "hello"
+        data(m.get("dog")) mustEqual "goodbye"
         server.fromClient mustEqual List("get cat\r\n", "get dog\r\n")
       }
 
@@ -96,7 +107,7 @@ object MemcacheConnectionSpec extends Specification {
         m.pool = pool
         // it bothers me that this has to be a whole second. but mina doesn't support msec yet.
         m.pool.readTimeout = 1000
-        m.getString("cat") must throwA(new MemcacheServerTimeout)
+        data(m.get("cat")) must throwA(new MemcacheServerTimeout)
       }
 
       "throw an exception for a bad server" in {
@@ -106,7 +117,7 @@ object MemcacheConnectionSpec extends Specification {
 
         val m = new MemcacheConnection("localhost", server.port, 1)
         m.pool = pool
-        m.getString("cat") must throwA(new MemcacheServerException(""))
+        data(m.get("cat")) must throwA(new MemcacheServerException(""))
       }
     }
 

@@ -43,57 +43,50 @@ class MemcacheConnection(val hostname: String, val port: Int, val weight: Int) {
   }
 
   @throws(classOf[MemcacheServerException])
-  def get(key: String): Option[Array[Byte]] = {
-    serverActor !? Get("get", key) match {
-      case ConnectionFailed => throw new MemcacheServerOffline
+  def get(keys: Array[String]): Map[String, MemcacheResponse.Value] = {
+    serverActor ! Get("get", keys.mkString(" "))
+    receive {
       case Timeout => throw new MemcacheServerTimeout
+      case ConnectionFailed => throw new MemcacheServerOffline
+      case Error(description) => throw new MemcacheServerException(description)
+      case GetResponse(values) => Map.empty ++ (for (v <- values) yield (v.key, v))
+    }
+  }
+
+  @throws(classOf[MemcacheServerException])
+  def get(key: String): Option[MemcacheResponse.Value] = {
+    serverActor ! Get("get", key)
+    receive {
+      case Timeout => throw new MemcacheServerTimeout
+      case ConnectionFailed => throw new MemcacheServerOffline
       case Error(description) => throw new MemcacheServerException(description)
       case GetResponse(values) =>
         values match {
           case Nil => None
-          case v :: Nil => Some(v.data)
+          case v :: Nil => Some(v)
           // sanity check:
-          case _ => throw new MemcacheServerException("too many results for single get: " + values.length)
+          case _ => throw new MemcacheServerException("too many results for single get: " +
+            values.length)
         }
-    }
-  }
-
-  // for convenience
-  def getString(key: String): String = {
-    get(key) match {
-      case None => ""
-      case Some(data) => new String(data)
-    }
-  }
-
-  def get(keys: Array[String]): Map[String, Array[Byte]] = {
-    serverActor !? Get("get", keys.mkString(" ")) match {
-      case ConnectionFailed => throw new MemcacheServerOffline
-      case Timeout => throw new MemcacheServerTimeout
-      case Error(description) => throw new MemcacheServerException(description)
-      case GetResponse(values) => Map.empty ++ (for (v <- values) yield (v.key, v.data))
-    }
-  }
-
-  def getString(keys: Array[String]): Map[String, String] = {
-    serverActor !? Get("get", keys.mkString(" ")) match {
-      case ConnectionFailed => throw new MemcacheServerOffline
-      case Timeout => throw new MemcacheServerTimeout
-      case Error(description) => throw new MemcacheServerException(description)
-      case GetResponse(values) => Map.empty ++ (for (v <- values) yield (v.key, new String(v.data)))
+      case x => throw new RuntimeException("ACCCCCK " + x)
     }
   }
 
   @throws(classOf[MemcacheServerException])
   def set(key: String, value: Array[Byte], flags: Int, expiry: Int): Unit = {
-    serverActor !? Store("set", key, flags, expiry, value) match {
-      case ConnectionFailed => throw new MemcacheServerOffline
+    serverActor ! Store("set", key, flags, expiry, value)
+    receive {
       case Timeout => throw new MemcacheServerTimeout
+      case ConnectionFailed => throw new MemcacheServerOffline
       case Error(description) => throw new MemcacheServerException(description)
       case MemcacheResponse.Stored =>
       case MemcacheResponse.NotStored => throw new NotStoredException
       case x => throw new MemcacheServerException("unexpected: " + x)
     }
+  }
+
+  def shutdown() = {
+    serverActor ! Stop
   }
 
 
@@ -160,7 +153,9 @@ class MemcacheConnection(val hostname: String, val port: Int, val weight: Int) {
       values.clear
 
       react {
-        case Stop => disconnect; self.exit
+        case Stop =>
+          disconnect
+          self.exit
 
         case Get(query, key) =>
           if (!ensureConnected) {
