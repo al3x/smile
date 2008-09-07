@@ -15,11 +15,7 @@ class KetamaNodeLocator(hasher: KeyHasher) extends NodeLocator {
 
   def this() = this(KeyHasher.KETAMA)
 
-  def serverPool = {
-    this.pool
-  }
-
-  def serverPool_=(pool: ServerPool) = {
+  def setPool(pool: ServerPool) = {
     this.pool = pool
     createContinuum
   }

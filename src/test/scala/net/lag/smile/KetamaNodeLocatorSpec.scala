@@ -23,7 +23,7 @@ object KetamaNodeLocatorSpec extends Specification {
     val connections = for (s <- servers) yield ServerPool.makeConnection(s)
     pool.servers = connections.toArray
     val ketama = new KetamaNodeLocator
-    ketama.serverPool = pool
+    ketama.setPool(pool)
     ketama
   }
 
@@ -61,7 +61,7 @@ object KetamaNodeLocatorSpec extends Specification {
       Configgy.configureFromResource("resources/test1.conf")
       val pool = ServerPool.fromConfig(Configgy.config.getAttributes("memcache").get)
       val ketama = new KetamaNodeLocator
-      ketama.serverPool = pool
+      ketama.setPool(pool)
       ketama
 
       val expected = List(

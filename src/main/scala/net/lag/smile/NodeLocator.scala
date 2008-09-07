@@ -6,16 +6,10 @@ package net.lag.smile
  */
 trait NodeLocator {
   /**
-   * Return a reference to the server pool. Included only for API completeness; not used
-   * by this library.
-   */
-  def serverPool: ServerPool
-
-  /**
    * Set the server pool. This will be called when MemcacheClient is initialized, and also
    * whenever the server list is changed.
    */
-  def serverPool_=(pool: ServerPool): Unit
+  def setPool(pool: ServerPool): Unit
 
   /**
    * Return the server node that should contain this key.
