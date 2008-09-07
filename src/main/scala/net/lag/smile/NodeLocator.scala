@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2008, Robey Pointer <robey@lag.net>
+ * ISC licensed. Please see the included LICENSE file for more information.
+ */
+
 package net.lag.smile
 
 
