@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2008, Robey Pointer <robey@lag.net>
+ * ISC licensed. Please see the included LICENSE file for more information.
+ */
+
 package net.lag.smile
 
 import java.nio.{ByteBuffer, ByteOrder}
@@ -105,6 +110,32 @@ object KeyHasher {
   }
 
   /**
+   * The default memcache hash algorithm is the ITU-T variant of CRC-32.
+   */
+  val CRC32_ITU = new KeyHasher {
+    def hashKey(key: Array[Byte]): Long = {
+      var i = 0
+      val len = key.length
+      var rv: Long = 0xffffffffL
+      while (i < len) {
+        rv = rv ^ (key(i) & 0xff)
+        var j = 0
+        while (j < 8) {
+          if ((rv & 1) != 0) {
+            rv = (rv >> 1) ^ 0xedb88320L
+          } else {
+            rv >>= 1
+          }
+          j += 1
+        }
+        i += 1
+      }
+      (rv ^ 0xffffffffL) & 0xffffffffL
+    }
+  }
+
+
+  /**
    * Return one of the key hashing algorithms by name. This is used to configure a memcache
    * client from a config file.
    */
@@ -117,6 +148,7 @@ object KeyHasher {
       case "fnv1-64" => FNV1_64
       case "fnv1a-64" => FNV1A_64
       case "ketama" => KETAMA
+      case "crc32-itu" => CRC32_ITU
       case x => throw new IllegalArgumentException("unknown hash: " + x)
     }
   }

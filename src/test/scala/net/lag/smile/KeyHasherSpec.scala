@@ -42,5 +42,12 @@ object KeyHasherSpec extends Specification {
       KeyHasher.KETAMA.hashKey("cat".getBytes) mustEqual 1156741072L
       KeyHasher.KETAMA.hashKey(longKey.getBytes) mustEqual 3103958980L
     }
+
+    "CRC32-ITU" in {
+      KeyHasher.CRC32_ITU.hashKey("".getBytes) mustEqual 0L
+      KeyHasher.CRC32_ITU.hashKey("\uffff".getBytes("utf-8")) mustEqual 1702646501L
+      KeyHasher.CRC32_ITU.hashKey("cat".getBytes) mustEqual 2656977832L
+      KeyHasher.CRC32_ITU.hashKey(longKey.getBytes) mustEqual 1410673605L
+    }
   }
 }
