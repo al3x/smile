@@ -17,6 +17,8 @@ object MemcacheConnectionSpec extends Specification {
 
   val pool = new ServerPool
   var server: FakeMemcacheConnection = null
+  var conn: MemcacheConnection = null
+
 
   def data(v: Option[MemcacheResponse.Value]) = {
     v match {
@@ -33,6 +35,10 @@ object MemcacheConnectionSpec extends Specification {
   "MemcacheConnection" should {
     doAfter {
       server.stop
+      if (conn != null) {
+        conn.shutdown
+      }
+      conn = null
     }
 
 
@@ -40,9 +46,9 @@ object MemcacheConnectionSpec extends Specification {
       server = new FakeMemcacheConnection(Nil)
       server.start
 
-      val m = new MemcacheConnection("localhost", server.port, 1)
-      m.pool = pool
-      m.ensureConnected mustBe true
+      conn = new MemcacheConnection("localhost", server.port, 1)
+      conn.pool = pool
+      conn.ensureConnected mustBe true
       server.awaitConnection(500) mustBe true
     }
 
@@ -50,9 +56,9 @@ object MemcacheConnectionSpec extends Specification {
       server = new FakeMemcacheConnection(Nil)
       server.start
 
-      val m = new MemcacheConnection("localhost", server.port + 1, 1)
-      m.pool = pool
-      m.ensureConnected mustBe false
+      conn = new MemcacheConnection("localhost", server.port + 1, 1)
+      conn.pool = pool
+      conn.ensureConnected mustBe false
       server.awaitConnection(500) mustBe false
     }
 
@@ -62,9 +68,9 @@ object MemcacheConnectionSpec extends Specification {
           Send("VALUE cat 0 5\r\nhello\r\nEND\r\n".getBytes) :: Nil)
         server.start
 
-        val m = new MemcacheConnection("localhost", server.port, 1)
-        m.pool = pool
-        data(m.get("cat")) mustEqual "hello"
+        conn = new MemcacheConnection("localhost", server.port, 1)
+        conn.pool = pool
+        data(conn.get("cat")) mustEqual "hello"
         server.fromClient mustEqual List("get cat\r\n")
       }
 
@@ -72,9 +78,9 @@ object MemcacheConnectionSpec extends Specification {
         server = new FakeMemcacheConnection(Receive(9) :: Send("END\r\n".getBytes) :: Nil)
         server.start
 
-        val m = new MemcacheConnection("localhost", server.port, 1)
-        m.pool = pool
-        m.get("cat") mustEqual None
+        conn = new MemcacheConnection("localhost", server.port, 1)
+        conn.pool = pool
+        conn.get("cat") mustEqual None
         server.fromClient mustEqual List("get cat\r\n")
       }
 
@@ -83,9 +89,9 @@ object MemcacheConnectionSpec extends Specification {
           Send("VALUE cat 0 5\r\nhello\r\nVALUE dog 0 7\r\ngoodbye\r\nEND\r\n".getBytes) :: Nil)
         server.start
 
-        val m = new MemcacheConnection("localhost", server.port, 1)
-        m.pool = pool
-        data(m.get(Array("cat", "dog"))) mustEqual Map("cat" -> "hello", "dog" -> "goodbye")
+        conn = new MemcacheConnection("localhost", server.port, 1)
+        conn.pool = pool
+        data(conn.get(Array("cat", "dog"))) mustEqual Map("cat" -> "hello", "dog" -> "goodbye")
         server.fromClient mustEqual List("get cat dog\r\n")
       }
 
@@ -97,10 +103,10 @@ object MemcacheConnectionSpec extends Specification {
           Nil)
         server.start
 
-        val m = new MemcacheConnection("localhost", server.port, 1)
-        m.pool = pool
-        data(m.get("cat")) mustEqual "hello"
-        data(m.get("dog")) mustEqual "goodbye"
+        conn = new MemcacheConnection("localhost", server.port, 1)
+        conn.pool = pool
+        data(conn.get("cat")) mustEqual "hello"
+        data(conn.get("dog")) mustEqual "goodbye"
         server.fromClient mustEqual List("get cat\r\n", "get dog\r\n")
       }
 
@@ -108,11 +114,11 @@ object MemcacheConnectionSpec extends Specification {
         server = new FakeMemcacheConnection(Receive(9) :: Sleep(1200) :: Send("END\r\n".getBytes) :: Nil)
         server.start
 
-        val m = new MemcacheConnection("localhost", server.port, 1)
-        m.pool = pool
+        conn = new MemcacheConnection("localhost", server.port, 1)
+        conn.pool = pool
         // it bothers me that this has to be a whole second. but mina doesn't support msec yet.
-        m.pool.readTimeout = 1000
-        data(m.get("cat")) must throwA(new MemcacheServerTimeout)
+        conn.pool.readTimeout = 1000
+        data(conn.get("cat")) must throwA(new MemcacheServerTimeout)
       }
 
       "throw an exception for a bad server" in {
@@ -120,9 +126,9 @@ object MemcacheConnectionSpec extends Specification {
           Send("CLIENT_ERROR i feel ill\r\n".getBytes) :: Nil)
         server.start
 
-        val m = new MemcacheConnection("localhost", server.port, 1)
-        m.pool = pool
-        data(m.get("cat")) must throwA(new MemcacheServerException(""))
+        conn = new MemcacheConnection("localhost", server.port, 1)
+        conn.pool = pool
+        data(conn.get("cat")) must throwA(new MemcacheServerException(""))
       }
     }
 
@@ -131,9 +137,9 @@ object MemcacheConnectionSpec extends Specification {
         server = new FakeMemcacheConnection(Receive(24) :: Send("STORED\r\n".getBytes) :: Nil)
         server.start
 
-        val m = new MemcacheConnection("localhost", server.port, 1)
-        m.pool = pool
-        m.set("cat", "hello".getBytes, 0, 500)
+        conn = new MemcacheConnection("localhost", server.port, 1)
+        conn.pool = pool
+        conn.set("cat", "hello".getBytes, 0, 500)
         server.fromClient mustEqual List("set cat 0 500 5\r\nhello\r\n")
       }
 
@@ -141,9 +147,9 @@ object MemcacheConnectionSpec extends Specification {
         server = new FakeMemcacheConnection(Receive(24) :: Send("NOT_STORED\r\n".getBytes) :: Nil)
         server.start
 
-        val m = new MemcacheConnection("localhost", server.port, 1)
-        m.pool = pool
-        m.set("cat", "hello".getBytes, 0, 500) must throwA(new MemcacheServerException(""))
+        conn = new MemcacheConnection("localhost", server.port, 1)
+        conn.pool = pool
+        conn.set("cat", "hello".getBytes, 0, 500) must throwA(new MemcacheServerException(""))
         server.fromClient mustEqual List("set cat 0 500 5\r\nhello\r\n")
       }
     }

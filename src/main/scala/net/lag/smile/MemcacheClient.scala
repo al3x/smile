@@ -19,6 +19,11 @@ class MemcacheClient(locator: NodeLocator) {
     locator.setPool(pool)
   }
 
+  def shutdown() = {
+    pool.shutdown
+    pool = null
+  }
+
   def get(key: String): Option[Array[Byte]] = {
     locator.findNode(key.getBytes("utf-8")).get(key) match {
       case None => None

@@ -34,7 +34,14 @@ class ServerPool {
 
 //  acceptor.getFilterChain().addLast( "logger", new LoggingFilter() );
 
+  def shutdown() = {
+    for (conn <- servers) {
+      conn.shutdown
+    }
+    servers = Array()
+  }
 }
+
 
 object ServerPool {
   var threadPool = Executors.newCachedThreadPool

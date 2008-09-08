@@ -50,6 +50,7 @@ object MemcacheClientSpec extends Specification {
       for (s <- servers) {
         s.stop
       }
+      client.shutdown
     }
 
 
