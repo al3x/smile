@@ -61,6 +61,7 @@ class KetamaNodeLocator(hasher: KeyHasher) extends NodeLocator {
   }
 
   override def toString() = {
-    "<KetamaNodeLocator nodes=%d servers=%d>".format(continuum.size, pool.servers.size)
+    "<KetamaNodeLocator hash=%s nodes=%d servers=%d>".format(hasher, continuum.size,
+      pool.servers.size)
   }
 }

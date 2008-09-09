@@ -3,4 +3,15 @@
   <description>Memcache library based on actors</description>
   <import file="ant/bootstrap.xml" />
   <property name="skip.docs" value="true" />
+
+  <target name="go" depends="prepare,compile-tests">
+    <java classname="scala.tools.nsc.MainGenericRunner" fork="true" failonerror="true">
+      <classpath>
+        <path refid="test.path" />
+        <pathelement location="${target.dir}" />
+        <pathelement location="${test.target.dir}" />
+      </classpath>
+      <arg line="net.lag.smile.go" />
+    </java>
+  </target>
 </project>

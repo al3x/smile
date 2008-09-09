@@ -5,6 +5,7 @@
 
 package net.lag.smile
 
+import net.lag.extensions._
 import scala.collection.mutable
 
 
@@ -36,5 +37,9 @@ class RoundRobinNodeLocator(hasher: KeyHasher) extends NodeLocator {
   def findNode(key: Array[Byte]): MemcacheConnection = {
     val index = (hasher.hashKey(key) % continuum.size).toInt
     continuum(index)
+  }
+
+  override def toString() = {
+    "<RoundRobinNodeLocator hash=%s>".format(hasher)
   }
 }

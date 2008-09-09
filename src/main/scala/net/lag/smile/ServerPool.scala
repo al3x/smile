@@ -6,6 +6,7 @@
 package net.lag.smile
 
 import net.lag.configgy.AttributeMap
+import net.lag.extensions._
 import net.lag.naggati.IoHandlerActorAdapter
 import org.apache.mina.core.session.{IdleStatus, IoSession}
 import org.apache.mina.filter.codec.{ProtocolCodecFilter, ProtocolEncoder, ProtocolEncoderOutput}
@@ -39,7 +40,10 @@ class ServerPool {
       conn.shutdown
     }
     servers = Array()
+    connector.dispose
   }
+
+  override def toString() = servers.mkString(",")
 }
 
 

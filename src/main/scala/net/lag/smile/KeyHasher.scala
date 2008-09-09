@@ -39,6 +39,8 @@ object KeyHasher {
       }
       rv & 0xffffffffL
     }
+
+    override def toString() = "FNV1_32"
   }
 
   /**
@@ -57,6 +59,8 @@ object KeyHasher {
       }
       rv & 0xffffffffL
     }
+
+    override def toString() = "FNV1A_32"
   }
 
   /**
@@ -75,6 +79,8 @@ object KeyHasher {
       }
       rv & 0xffffffffL
     }
+
+    override def toString() = "FNV1_64"
   }
 
   /**
@@ -93,6 +99,8 @@ object KeyHasher {
       }
       rv & 0xffffffffL
     }
+
+    override def toString() = "FNV1A_64"
   }
 
   /**
@@ -107,6 +115,8 @@ object KeyHasher {
       buffer.order(ByteOrder.LITTLE_ENDIAN)
       buffer.getInt.toLong & 0xffffffffL
     }
+
+    override def toString() = "Ketama"
   }
 
   /**
@@ -132,6 +142,8 @@ object KeyHasher {
       }
       (rv ^ 0xffffffffL) & 0xffffffffL
     }
+
+    override def toString() = "CRC32_ITU"
   }
 
 
