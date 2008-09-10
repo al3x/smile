@@ -29,6 +29,9 @@ class MemcacheClient(locator: NodeLocator) {
     "<MemcacheClient locator=%s servers=%s>".format(locator, pool)
   }
 
+
+  // FIXME: key prefix
+
   @throws(classOf[MemcacheServerException])
   def get(key: String): Option[Array[Byte]] = {
     locator.findNode(key.getBytes("utf-8")).get(key) match {

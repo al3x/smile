@@ -16,8 +16,14 @@ import java.util.concurrent.Executors
 
 /**
  * Pool of memcache server connections, and their shared config.
+ *
+ * @param trace if true, log all incoming/outgoing data as hexdumps at TRACE level
  */
-class ServerPool {
+class ServerPool(trace: Boolean) {
+
+  def this() = this(false)
+
+  var threadPool = Executors.newCachedThreadPool
   var servers: Array[MemcacheConnection] = Array()
 
   private var DEFAULT_CONNECT_TIMEOUT = 250
@@ -25,15 +31,18 @@ class ServerPool {
   var readTimeout = 2000
 
   // note: this will create one thread per ServerPool
-  var connector = SocketConnectorHack.get(ServerPool.threadPool)
+  var connector = SocketConnectorHack.get(threadPool)
   connector.setConnectTimeoutMillis(DEFAULT_CONNECT_TIMEOUT)
   connector.getSessionConfig.setTcpNoDelay(true)
   connector.getSessionConfig.setUseReadOperation(true)
 
+  // don't always install this.
+  if (trace) {
+    connector.getFilterChain.addLast("logger", new LoggingFilter)
+  }
+
   connector.getFilterChain.addLast("codec", MemcacheClientDecoder.filter)
   connector.setHandler(new IoHandlerActorAdapter((session: IoSession) => null))
-
-//  acceptor.getFilterChain().addLast( "logger", new LoggingFilter() );
 
   def shutdown() = {
     for (conn <- servers) {
@@ -41,6 +50,7 @@ class ServerPool {
     }
     servers = Array()
     connector.dispose
+    threadPool.shutdown
   }
 
   override def toString() = servers.mkString(",")
@@ -48,7 +58,6 @@ class ServerPool {
 
 
 object ServerPool {
-  var threadPool = Executors.newCachedThreadPool
 
   val DEFAULT_PORT = 11211
   val DEFAULT_WEIGHT = 1
@@ -72,7 +81,7 @@ object ServerPool {
   }
 
   def fromConfig(attr: AttributeMap) = {
-    val pool = new ServerPool
+    val pool = new ServerPool(attr.getBool("trace", false))
     for (serverList <- attr.getStringList("servers")) {
       pool.servers = for (desc <- serverList) yield makeConnection(desc)
       for (s <- pool.servers) {
