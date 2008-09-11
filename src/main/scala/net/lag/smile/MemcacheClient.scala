@@ -10,10 +10,12 @@ import net.lag.extensions._
 
 
 /**
- * 
+ *
  */
 class MemcacheClient(locator: NodeLocator) {
   private var pool: ServerPool = null
+  var namespace: Option[String] = None
+
 
   def setPool(pool: ServerPool) = {
     this.pool = pool
@@ -34,7 +36,8 @@ class MemcacheClient(locator: NodeLocator) {
 
   @throws(classOf[MemcacheServerException])
   def get(key: String): Option[Array[Byte]] = {
-    locator.findNode(key.getBytes("utf-8")).get(key) match {
+    val (node, rkey) = nodeForKey(key)
+    node.get(rkey) match {
       case None => None
       case Some(v) => Some(v.data)
     }
@@ -50,7 +53,8 @@ class MemcacheClient(locator: NodeLocator) {
 
   @throws(classOf[MemcacheServerException])
   def set(key: String, value: Array[Byte], flags: Int, expiry: Int): Unit = {
-    locator.findNode(key.getBytes("utf-8")).set(key, value, flags, expiry)
+    val (node, rkey) = nodeForKey(key)
+    node.set(rkey, value, flags, expiry)
   }
 
   @throws(classOf[MemcacheServerException])
@@ -63,6 +67,15 @@ class MemcacheClient(locator: NodeLocator) {
 
   @throws(classOf[MemcacheServerException])
   def setString(key: String, value: String): Unit = setString(key, value, 0, 0)
+
+
+  private def nodeForKey(key: String): (MemcacheConnection, String) = {
+    val realKey = namespace match {
+      case None => key
+      case Some(prefix) => prefix + ":" + key
+    }
+    (locator.findNode(realKey.getBytes("utf-8")), realKey)
+  }
 }
 
 
@@ -89,6 +102,8 @@ object MemcacheClient {
     }
     val client = new MemcacheClient(locator)
     client.setPool(pool)
+    client.namespace = attr.get("namespace")
+
     client
   }
 }
