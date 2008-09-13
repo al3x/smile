@@ -13,7 +13,7 @@ object MemcacheClientSpec extends Specification {
 
   var pool: ServerPool = null
   var servers: List[FakeMemcacheConnection] = Nil
-  var client: MemcacheClient = null
+  var client: MemcacheClient[String] = null
 
   def makeServers(seed: List[List[Task]]) = {
     // silly node locator that chooses based on the first letter of the key.
@@ -41,7 +41,7 @@ object MemcacheClientSpec extends Specification {
       connections += connection
     }
     pool.servers = connections.toArray
-    client = new MemcacheClient(locator)
+    client = new MemcacheClient(locator, MemcacheCodec.UTF8)
     client.setPool(pool)
   }
 
@@ -60,9 +60,9 @@ object MemcacheClientSpec extends Specification {
         Receive(7) :: Send("VALUE b 0 5\r\nbeach\r\nEND\r\n".getBytes) :: Nil,
         Receive(7) :: Send("VALUE c 0 5\r\nconch\r\nEND\r\n".getBytes) :: Nil
       ))
-      client.getString("a") mustEqual Some("apple")
-      client.getString("b") mustEqual Some("beach")
-      client.getString("c") mustEqual Some("conch")
+      client.get("a") mustEqual Some("apple")
+      client.get("b") mustEqual Some("beach")
+      client.get("c") mustEqual Some("conch")
       for (s <- servers) {
         s.awaitConnection(500) mustBe true
       }
@@ -85,19 +85,19 @@ object MemcacheClientSpec extends Specification {
       val t1 = new Thread {
         override def run = {
           latch.await
-          val1 = client.getString("a")
+          val1 = client.get("a")
         }
       }
       val t2 = new Thread {
         override def run = {
           latch.await
-          val2 = client.getString("b")
+          val2 = client.get("b")
         }
       }
       val t3 = new Thread {
         override def run = {
           latch.await
-          val3 = client.getString("c")
+          val3 = client.get("c")
         }
       }
 

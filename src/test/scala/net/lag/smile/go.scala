@@ -12,7 +12,7 @@ object go {
     Logger.get("").setLevel(Logger.TRACE)
     val cache = MemcacheClient.create(Configgy.config.getAttributes("memcache").get)
     println(cache)
-    cache.setString("robey", "calgon take me away!")
+    cache.set("robey", "calgon take me away!")
     cache.shutdown
   }
 }

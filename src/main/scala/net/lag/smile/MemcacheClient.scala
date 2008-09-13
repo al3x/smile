@@ -12,7 +12,7 @@ import net.lag.extensions._
 /**
  *
  */
-class MemcacheClient(locator: NodeLocator) {
+class MemcacheClient[T](locator: NodeLocator, codec: MemcacheCodec[T]) {
   private var pool: ServerPool = null
   var namespace: Option[String] = None
 
@@ -34,7 +34,7 @@ class MemcacheClient(locator: NodeLocator) {
 
 
   @throws(classOf[MemcacheServerException])
-  def get(key: String): Option[Array[Byte]] = {
+  def getData(key: String): Option[Array[Byte]] = {
     val (node, rkey) = nodeForKey(key)
     node.get(rkey) match {
       case None => None
@@ -43,29 +43,45 @@ class MemcacheClient(locator: NodeLocator) {
   }
 
   @throws(classOf[MemcacheServerException])
-  def getString(key: String): Option[String] = {
-    get(key) match {
+  def get(key: String): Option[T] = {
+    getData(key) match {
       case None => None
-      case Some(data) => Some(new String(data, "utf-8"))
+      case Some(data) => Some(codec.decode(data))
     }
   }
 
   @throws(classOf[MemcacheServerException])
-  def set(key: String, value: Array[Byte], flags: Int, expiry: Int): Unit = {
+  def get[A](key: String, codec: MemcacheCodec[A]): Option[A] = {
+    getData(key) match {
+      case None => None
+      case Some(data) => Some(codec.decode(data))
+    }
+  }
+
+  @throws(classOf[MemcacheServerException])
+  def setData(key: String, value: Array[Byte], flags: Int, expiry: Int): Unit = {
     val (node, rkey) = nodeForKey(key)
     node.set(rkey, value, flags, expiry)
   }
 
   @throws(classOf[MemcacheServerException])
-  def set(key: String, value: Array[Byte]): Unit = set(key, value, 0, 0)
+  def setData(key: String, value: Array[Byte]): Unit = setData(key, value, 0, 0)
 
   @throws(classOf[MemcacheServerException])
-  def setString(key: String, value: String, flags: Int, expiry: Int): Unit = {
-    set(key, value.getBytes("utf-8"), flags, expiry)
+  def set(key: String, value: T, flags: Int, expiry: Int): Unit = {
+    setData(key, codec.encode(value), flags, expiry)
   }
 
   @throws(classOf[MemcacheServerException])
-  def setString(key: String, value: String): Unit = setString(key, value, 0, 0)
+  def set(key: String, value: T): Unit = set(key, value, 0, 0)
+
+  @throws(classOf[MemcacheServerException])
+  def set[A](key: String, value: A, flags: Int, expiry: Int, codec: MemcacheCodec[A]): Unit = {
+    setData(key, codec.encode(value), flags, expiry)
+  }
+
+  @throws(classOf[MemcacheServerException])
+  def set[A](key: String, value: A, codec: MemcacheCodec[A]): Unit = set(key, value, 0, 0, codec)
 
 
   private def nodeForKey(key: String): (MemcacheConnection, String) = {
@@ -79,8 +95,13 @@ class MemcacheClient(locator: NodeLocator) {
 
 
 object MemcacheClient {
-  def create(servers: Array[MemcacheConnection], locator: NodeLocator) = {
-    val client = new MemcacheClient(locator)
+  def create(servers: Array[MemcacheConnection], locator: NodeLocator): MemcacheClient[String] = {
+    create(servers, locator, MemcacheCodec.UTF8)
+  }
+
+  def create[T](servers: Array[MemcacheConnection], locator: NodeLocator,
+                codec: MemcacheCodec[T]): MemcacheClient[T] = {
+    val client = new MemcacheClient(locator, codec)
     val pool = new ServerPool
     pool.servers = servers
     client.setPool(pool)
@@ -93,7 +114,7 @@ object MemcacheClient {
       case (hashName, factory) =>
         factory(KeyHasher.byName(attr.get("hash", hashName)))
     }
-    val client = new MemcacheClient(locator)
+    val client = new MemcacheClient(locator, MemcacheCodec.UTF8)
     client.setPool(pool)
     client.namespace = attr.get("namespace")
 
