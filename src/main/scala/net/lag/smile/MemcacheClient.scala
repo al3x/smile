@@ -32,7 +32,6 @@ class MemcacheClient(locator: NodeLocator) {
   }
 
 
-  // FIXME: key prefix
 
   @throws(classOf[MemcacheServerException])
   def get(key: String): Option[Array[Byte]] = {
@@ -90,15 +89,9 @@ object MemcacheClient {
 
   def create(attr: AttributeMap) = {
     val pool = ServerPool.fromConfig(attr)
-    val locator = attr.get("distribution", "default") match {
-      case "default" =>
-        new RoundRobinNodeLocator(KeyHasher.byName(attr.get("hash", "crc32-itu")))
-      case "round-robin" =>
-        new RoundRobinNodeLocator(KeyHasher.byName(attr.get("hash", "crc32-itu")))
-      case "ketama" =>
-        new KetamaNodeLocator(KeyHasher.byName(attr.get("hash", "ketama")))
-      case x =>
-        throw new IllegalArgumentException("unknown distribution: " + x)
+    val locator = NodeLocator.byName(attr.get("distribution", "default")) match {
+      case (hashName, factory) =>
+        factory(KeyHasher.byName(attr.get("hash", hashName)))
     }
     val client = new MemcacheClient(locator)
     client.setPool(pool)
