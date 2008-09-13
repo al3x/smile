@@ -14,4 +14,15 @@
       <arg line="net.lag.smile.go" />
     </java>
   </target>
+
+  <target name="manygets" depends="prepare,compile-tests">
+    <java classname="scala.tools.nsc.MainGenericRunner" fork="true" failonerror="true">
+      <classpath>
+        <path refid="test.path" />
+        <pathelement location="${target.dir}" />
+        <pathelement location="${test.target.dir}" />
+      </classpath>
+      <arg line="net.lag.smile.stress.ManyGets" />
+    </java>
+  </target>
 </project>
