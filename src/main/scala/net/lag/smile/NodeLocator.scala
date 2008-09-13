@@ -61,7 +61,7 @@ object NodeLocator {
   def byName(name: String): (String, Factory) = {
     locators.get(name) match {
       case Some((h, f)) => (h, f)
-      case None => throw new IllegalArgumentException("unknown hash: " + name)
+      case None => throw new IllegalArgumentException("unknown node locator: " + name)
     }
   }
 }
