@@ -53,7 +53,7 @@ class ServerPool(trace: Boolean) {
     threadPool.shutdown
   }
 
-  override def toString() = servers.mkString(",")
+  override def toString() = servers.mkString(", ")
 }
 
 
