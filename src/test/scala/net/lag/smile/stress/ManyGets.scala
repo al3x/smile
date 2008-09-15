@@ -19,7 +19,7 @@ object ManyGets {
 
   // get the same value N times in a row.
   def serialGets(count: Int) = {
-    println("serial gets: " + count)
+    println("serial gets: %d".format(count))
     val cache = MemcacheClient.create(Array("localhost"), "default", "crc32-itu")
 
     val key = "toasters"
@@ -39,7 +39,7 @@ object ManyGets {
 
   // get the same value N times in a row from each of M threads.
   def parallelGets(count: Int, threads: Int) = {
-    println("parallel gets: " + count + " on " + threads + " threads")
+    println("parallel gets: %d on %d threads".format(count, threads))
     val cache = MemcacheClient.create(Array("localhost"), "default", "crc32-itu")
 
     val key = "toasters"
@@ -72,9 +72,57 @@ object ManyGets {
     cache.shutdown
   }
 
+  // get one of K values, N times each from M threads, against 3 memcache servers.
+  def parallelGetsFrom3(count: Int, threads: Int, keyCount: Int) = {
+    println("parallel gets: %d on %d threads from 3 servers".format(count, threads))
+    val cache = MemcacheClient.create(Array("localhost", "localhost:11212", "localhost:11213"),
+      "default", "crc32-itu")
+
+    val r = new Random
+    val keys: List[String] = (for (i <- 1 to keyCount) yield "toaster" + r.nextInt(1000000)).toList
+    for (k <- keys) {
+      cache.set(k, k)
+    }
+    for (s <- cache.servers) {
+      if (! s.connected) {
+        throw new Exception("not connected! to " + s)
+      }
+    }
+
+    val latch = new CountDownLatch(1)
+    var threadList: List[Thread] = Nil
+
+    for (i <- 1 to threads) {
+      val t = new Thread {
+        override def run() = {
+          val r = new Random
+          latch.await
+          for (i <- 1 to count) {
+            val key = keys(r.nextInt(keys.length))
+            val got = cache.get(key)
+            if (got != Some(key)) {
+              println("round " + i + ": got " + got + ", expected " + Some(key))
+              throw new Exception("aiieeee!")
+            }
+          }
+        }
+      }
+      t.start
+      threadList = t :: threadList
+    }
+
+    report("toasters", count * threads) {
+      latch.countDown
+      for (t <- threadList) t.join
+    }
+    cache.shutdown
+
+  }
+
   def main(args: Array[String]): Unit = {
     Logger.get("").setLevel(Logger.TRACE)
     serialGets(1000)
     parallelGets(1000, 10)
+    parallelGetsFrom3(1000, 10, 25)
   }
 }
