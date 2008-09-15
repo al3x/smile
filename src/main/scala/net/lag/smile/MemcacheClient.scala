@@ -22,6 +22,10 @@ class MemcacheClient[T](locator: NodeLocator, codec: MemcacheCodec[T]) {
     locator.setPool(pool)
   }
 
+  /**
+   * Shutdown this memcache client instance. This is necessary in order to stop the connection
+   * actors and terminate mina threads.
+   */
   def shutdown() = {
     pool.shutdown
     pool = null
@@ -31,6 +35,10 @@ class MemcacheClient[T](locator: NodeLocator, codec: MemcacheCodec[T]) {
     "<MemcacheClient locator=%s servers=%s>".format(locator, pool)
   }
 
+  /**
+   * Return the list of memcache server connections.
+   */
+  def servers = pool.servers
 
 
   @throws(classOf[MemcacheServerException])
