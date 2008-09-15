@@ -120,4 +120,17 @@ object MemcacheClient {
 
     client
   }
+
+  def create(servers: Array[String], distribution: String, hash: String) = {
+    val pool = new ServerPool
+    val connections = for (s <- servers) yield ServerPool.makeConnection(s, pool)
+    pool.servers = connections
+
+    val locator = NodeLocator.byName(distribution) match {
+      case (hashName, factory) => factory(KeyHasher.byName(hash))
+    }
+    val client = new MemcacheClient(locator, MemcacheCodec.UTF8)
+    client.setPool(pool)
+    client
+  }
 }
