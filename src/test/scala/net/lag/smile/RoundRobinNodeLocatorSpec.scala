@@ -25,7 +25,7 @@ object RoundRobinNodeLocatorSpec extends Specification {
       "10.0.1.8:11211"
     )
     val pool = new ServerPool
-    val connections = for (s <- servers) yield ServerPool.makeConnection(s)
+    val connections = for (s <- servers) yield ServerPool.makeConnection(s, pool)
     pool.servers = connections.toArray
     val locator = new RoundRobinNodeLocator
     locator.setPool(pool)
@@ -44,7 +44,7 @@ object RoundRobinNodeLocatorSpec extends Specification {
       "10.0.1.8:11211 1"
     )
     val pool = new ServerPool
-    val connections = for (s <- servers) yield ServerPool.makeConnection(s)
+    val connections = for (s <- servers) yield ServerPool.makeConnection(s, pool)
     pool.servers = connections.toArray
     val locator = new RoundRobinNodeLocator
     locator.setPool(pool)

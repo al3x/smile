@@ -67,8 +67,8 @@ object ServerPool {
    * <hostname> [ ":" <port> [ " " <weight> ]]
    * The default port is 11211 and the default weight is 1.
    */
-  def makeConnection(desc: String) = {
-    desc.split("[: ]").toList match {
+  def makeConnection(desc: String, pool: ServerPool) = {
+    val connection = desc.split("[: ]").toList match {
       case hostname :: Nil =>
         new MemcacheConnection(hostname, DEFAULT_PORT, DEFAULT_WEIGHT)
       case hostname :: port :: Nil =>
@@ -78,15 +78,17 @@ object ServerPool {
       case _ =>
         throw new IllegalArgumentException
     }
+    connection.pool = pool
+    connection
   }
 
+  /**
+   * Make a new ServerPool out of a config block.
+   */
   def fromConfig(attr: AttributeMap) = {
     val pool = new ServerPool(attr.getBool("trace", false))
     for (serverList <- attr.getStringList("servers")) {
-      pool.servers = for (desc <- serverList) yield makeConnection(desc)
-      for (s <- pool.servers) {
-        s.pool = pool
-      }
+      pool.servers = for (desc <- serverList) yield makeConnection(desc, pool)
     }
     for (n <- attr.getInt("retry_delay")) {
       pool.retryDelay = n * 1000
