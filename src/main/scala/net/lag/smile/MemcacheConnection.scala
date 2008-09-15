@@ -22,7 +22,7 @@ import org.apache.mina.transport.socket.nio.NioSocketConnector
 class MemcacheConnection(val hostname: String, val port: Int, val weight: Int) {
   var pool: ServerPool = null
 
-  val log = Logger.get
+  private val log = Logger.get
 
   @volatile protected var session: Option[IoSession] = None
 
@@ -46,6 +46,11 @@ class MemcacheConnection(val hostname: String, val port: Int, val weight: Int) {
     }
     "<MemcacheConnection %s:%d weight=%d (%s)>".format(hostname, port, weight, status)
   }
+
+  /**
+   * Do we have an open TCP connection to this memcache server (or think we do)?
+   */
+  def connected = session != None
 
   @throws(classOf[MemcacheServerException])
   def get(keys: Array[String]): Map[String, MemcacheResponse.Value] = {
@@ -90,6 +95,10 @@ class MemcacheConnection(val hostname: String, val port: Int, val weight: Int) {
     }
   }
 
+  /**
+   * Stop the actor associated with this connection, and disconnect from the server if
+   * connected. The MemcacheConnection object will be useless after this call.
+   */
   def shutdown() = {
     serverActor ! Stop
   }
