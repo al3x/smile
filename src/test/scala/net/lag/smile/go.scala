@@ -8,9 +8,8 @@ import net.lag.configgy.Configgy
 
 object go {
   def main(args: Array[String]): Unit = {
-    Configgy.configure("/Users/robey/code/scala/smile/test.conf")
     Logger.get("").setLevel(Logger.TRACE)
-    val cache = MemcacheClient.create(Configgy.config.getAttributes("memcache").get)
+    val cache = MemcacheClient.create(Array("localhost"), "default", "crc32-itu")
     println(cache)
     cache.set("robey", "calgon take me away!")
     cache.shutdown
