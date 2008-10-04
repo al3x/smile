@@ -2,7 +2,6 @@
 <project name="smile" default="package">
   <description>Memcache library based on actors</description>
   <import file="ant/bootstrap.xml" />
-  <property name="skip.docs" value="true" />
 
   <target name="go" depends="prepare,compile-tests">
     <java classname="scala.tools.nsc.MainGenericRunner" fork="true" failonerror="true">
