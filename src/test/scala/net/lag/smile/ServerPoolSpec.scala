@@ -29,8 +29,8 @@ object ServerPoolSpec extends Specification {
       pool.servers.size mustEqual 77
       pool.servers(0).toString must include("daemon001:11211 weight=1")
       pool.servers(1).toString must include("daemon002:11211 weight=1")
-      pool.servers(23).toString must include("twitter-web007:11211 weight=1")
-      pool.servers(76).toString must include("twitter-web068:11211 weight=2")
+      pool.servers(23).toString must include("cluster007:11211 weight=1")
+      pool.servers(76).toString must include("cluster068:11211 weight=2")
       pool.readTimeout mustEqual 3000
       pool.retryDelay mustEqual 42000
     }

@@ -71,16 +71,16 @@ object KetamaNodeLocatorSpec extends Specification {
 
       val expected = List(
         List("apple", "daemon003"),
-        List("beanie baby", "twitter-web056"),
-        List("california", "twitter-web050"),
-        List("dead dog", "daemon017"),
-        List("entrenched", "twitter-web044"),
-        List("FFS", "twitter-web066"),
-        List("GIGO", "twitter-web068"),
-        List("hello sailor", "twitter-web046"),
-        List("inner universe", "twitter-web044"),
+        List("beanie baby", "cluster049"),
+        List("california", "cluster027"),
+        List("dead dog", "cluster062"),
+        List("entrenched", "cluster001"),
+        List("FFS", "cluster044"),
+        List("GIGO", "cluster065"),
+        List("hello sailor", "cluster049"),
+        List("inner universe", "cluster015"),
         List("jump!", "daemon009"),
-        List("kangaroo meat", "twitter-web023")
+        List("kangaroo meat", "cluster001")
         )
       var count = 0
       for (testcase <- expected) {
