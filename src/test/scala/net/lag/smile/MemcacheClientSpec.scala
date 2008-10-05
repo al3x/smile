@@ -50,6 +50,7 @@ object MemcacheClientSpec extends Specification {
       for (s <- servers) {
         s.stop
       }
+      servers = Nil
       client.shutdown
     }
 
@@ -118,6 +119,35 @@ object MemcacheClientSpec extends Specification {
       servers(0).fromClient mustEqual List("get a\r\n")
       servers(1).fromClient mustEqual List("get b\r\n")
       servers(2).fromClient mustEqual List("get c\r\n")
+    }
+
+    "multi-get keys from 3 different servers" in {
+      makeServers(List(
+        Receive(7) :: Send("VALUE a 0 5\r\napple\r\nEND\r\n".getBytes) :: Nil,
+        Receive(7) :: Send("VALUE b 0 5\r\nbeach\r\nEND\r\n".getBytes) :: Nil,
+        Receive(7) :: Send("VALUE c 0 5\r\nconch\r\nEND\r\n".getBytes) :: Nil
+      ))
+      client.get(Array("a", "b", "c")) mustEqual Map("a" -> "apple", "b" -> "beach", "c" -> "conch")
+      for (s <- servers) {
+        s.awaitConnection(500) mustBe true
+      }
+      servers(0).fromClient mustEqual List("get a\r\n")
+      servers(1).fromClient mustEqual List("get b\r\n")
+      servers(2).fromClient mustEqual List("get c\r\n")
+    }
+    
+    "multi-get keys from 1 server with namespacing" in {
+      makeServers(List(
+        Receive(17) :: Send(("VALUE a:a 0 5\r\napple\r\nVALUE a:b 0 5\r\n" +
+          "beach\r\nVALUE a:c 0 5\r\nconch\r\nEND\r\n").getBytes) :: Nil
+        ))
+      client.namespace = Some("a")
+      client.get(Array("a", "b", "c")) mustEqual Map("a" -> "apple", "b" -> "beach", "c" -> "conch")
+println(servers)
+      for (s <- servers) {
+        s.awaitConnection(500) mustBe true
+      }
+      servers(0).fromClient mustEqual List("get a:a a:b a:c\r\n")
     }
   }
 }

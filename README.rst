@@ -60,7 +60,8 @@ TO-DO
 =====
 
 - Add Future API to allow get/set to happen in the background while you do
-  other work.
+  other work. Wait, this may not be necessary. Scala lets you trivially turn
+  any operation into a future.
 
 - Support multi-get.
 

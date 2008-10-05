@@ -7,6 +7,8 @@ package net.lag.smile
 
 import net.lag.configgy.AttributeMap
 import net.lag.extensions._
+import scala.actors.Futures
+import scala.collection.mutable
 
 
 /**
@@ -64,6 +66,30 @@ class MemcacheClient[T](locator: NodeLocator, codec: MemcacheCodec[T]) {
       case None => None
       case Some(data) => Some(codec.decode(data))
     }
+  }
+
+  @throws(classOf[MemcacheServerException])
+  def getData(keys: Array[String]): Map[String, Array[Byte]] = {
+    val keyMap = new mutable.HashMap[String, String]
+    val nodeKeys = new mutable.HashMap[MemcacheConnection, mutable.ListBuffer[String]]
+    for (key <- keys) {
+      val (node, rkey) = nodeForKey(key)
+      keyMap(rkey) = key
+      nodeKeys.getOrElseUpdate(node, new mutable.ListBuffer[String]) += rkey
+    }
+    val futures = for ((node, keyList) <- nodeKeys.elements) yield
+      Futures.future { node.get(keyList.toArray) }
+    Map.empty ++ (for (future <- futures; (key, value) <- future().elements) yield (keyMap(key), value.data))
+  }
+
+  @throws(classOf[MemcacheServerException])
+  def get(keys: Array[String]): Map[String, T] = {
+    Map.empty ++ (for ((key, data) <- getData(keys).elements) yield (key, codec.decode(data)))
+  }
+
+  @throws(classOf[MemcacheServerException])
+  def get[A](keys: Array[String], codec: MemcacheCodec[A]): Map[String, A] = {
+    Map.empty ++ (for ((key, data) <- getData(keys).elements) yield (key, codec.decode(data)))
   }
 
   @throws(classOf[MemcacheServerException])

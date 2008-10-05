@@ -54,8 +54,7 @@ class MemcacheConnection(val hostname: String, val port: Int, val weight: Int) {
 
   @throws(classOf[MemcacheServerException])
   def get(keys: Array[String]): Map[String, MemcacheResponse.Value] = {
-    serverActor ! Get("get", keys.mkString(" "))
-    receive {
+    serverActor !? Get("get", keys.mkString(" ")) match {
       case Timeout => throw new MemcacheServerTimeout
       case ConnectionFailed => throw new MemcacheServerOffline
       case Error(description) => throw new MemcacheServerException(description)
@@ -65,8 +64,7 @@ class MemcacheConnection(val hostname: String, val port: Int, val weight: Int) {
 
   @throws(classOf[MemcacheServerException])
   def get(key: String): Option[MemcacheResponse.Value] = {
-    serverActor ! Get("get", key)
-    receive {
+    serverActor !? Get("get", key) match {
       case Timeout => throw new MemcacheServerTimeout
       case ConnectionFailed => throw new MemcacheServerOffline
       case Error(description) => throw new MemcacheServerException(description)
