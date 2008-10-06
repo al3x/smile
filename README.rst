@@ -37,7 +37,8 @@ with very simple code.
 Performance
 ===========
 
-A performance test is included as an ant target. It requires you to have 3 memcached servers running on localhost, on ports 11211, 11212, and 11213::
+A performance test is included as an ant target. It requires you to have 3
+memcached servers running on localhost, on ports 11211, 11212, and 11213::
 
     $ ant manygets
     manygets:
@@ -77,4 +78,7 @@ TO-DO
 - Support more than just get and set. At least delete, add, and append.
 
 - Expose the stats command in some useful way.
+
+- Port to scala 2.7.2 when that's released, so the java hack can go away and
+  vscaladoc will work.
 
