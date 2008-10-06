@@ -43,6 +43,9 @@ class MemcacheClient[T](locator: NodeLocator, codec: MemcacheCodec[T]) {
   def servers = pool.servers
 
 
+  /**
+   * Get an item from the memcache cluster as an array of bytes.
+   */
   @throws(classOf[MemcacheServerException])
   def getData(key: String): Option[Array[Byte]] = {
     val (node, rkey) = nodeForKey(key)
@@ -52,6 +55,10 @@ class MemcacheClient[T](locator: NodeLocator, codec: MemcacheCodec[T]) {
     }
   }
 
+  /**
+   * Get an item from the memcache cluster and decode it using the default
+   * codec.
+   */
   @throws(classOf[MemcacheServerException])
   def get(key: String): Option[T] = {
     getData(key) match {
@@ -60,6 +67,10 @@ class MemcacheClient[T](locator: NodeLocator, codec: MemcacheCodec[T]) {
     }
   }
 
+  /**
+   * Get an item from the memcache cluster and decode it using a specific
+   * codec.
+   */
   @throws(classOf[MemcacheServerException])
   def get[A](key: String, codec: MemcacheCodec[A]): Option[A] = {
     getData(key) match {
@@ -68,6 +79,13 @@ class MemcacheClient[T](locator: NodeLocator, codec: MemcacheCodec[T]) {
     }
   }
 
+  /**
+   * Get a list of items from the memcache cluster and return the ones that
+   * exist in a map associating keys to arrays of bytes. If some of the keys
+   * map to different memcache servers, the servers will be contacted
+   * concurrently. A multi-get will be used on each server to get every item
+   * from that server at once.
+   */
   @throws(classOf[MemcacheServerException])
   def getData(keys: Array[String]): Map[String, Array[Byte]] = {
     val keyMap = new mutable.HashMap[String, String]
@@ -82,11 +100,21 @@ class MemcacheClient[T](locator: NodeLocator, codec: MemcacheCodec[T]) {
     Map.empty ++ (for (future <- futures; (key, value) <- future().elements) yield (keyMap(key), value.data))
   }
 
+  /**
+   * Get a list of items from the memcache cluster and return the ones that
+   * exist in a map associating keys to items decoded using the default
+   * codec. Parallel fetching is used, just as in <code>getData</code>.
+   */
   @throws(classOf[MemcacheServerException])
   def get(keys: Array[String]): Map[String, T] = {
     Map.empty ++ (for ((key, data) <- getData(keys).elements) yield (key, codec.decode(data)))
   }
 
+  /**
+   * Get a list of items from the memcache cluster and return the ones that
+   * exist in a map associating keys to items decoded using the codec given.
+   * Parallel fetching is used, just as in <code>getData</code>.
+   */
   @throws(classOf[MemcacheServerException])
   def get[A](keys: Array[String], codec: MemcacheCodec[A]): Map[String, A] = {
     Map.empty ++ (for ((key, data) <- getData(keys).elements) yield (key, codec.decode(data)))
@@ -129,10 +157,19 @@ class MemcacheClient[T](locator: NodeLocator, codec: MemcacheCodec[T]) {
 
 
 object MemcacheClient {
+  /**
+   * Create a new MemcacheClient from a server list and node locator, using
+   * the UTF-8 codec.
+   */
   def create(servers: Array[MemcacheConnection], locator: NodeLocator): MemcacheClient[String] = {
     create(servers, locator, MemcacheCodec.UTF8)
   }
 
+  /**
+   * Create a new MemcacheClient from a server list, node locator, and codec.
+   * The codec will be the default mechanism for translating memcache items
+   * to/from scala objects.
+   */
   def create[T](servers: Array[MemcacheConnection], locator: NodeLocator,
                 codec: MemcacheCodec[T]): MemcacheClient[T] = {
     val client = new MemcacheClient(locator, codec)
@@ -142,6 +179,13 @@ object MemcacheClient {
     client
   }
 
+  /**
+   * Create a new MemcacheClient from a configgy block. The memcache cluster
+   * distribution and hash function are specified by strings
+   * "<code>distribution</code>" and "<code>hash</code>". An optional namespace
+   * may be specified with "<code>namespace</code>". The server list must be
+   * in a string list called "<code>servers</code>".
+   */
   def create(attr: AttributeMap) = {
     val pool = ServerPool.fromConfig(attr)
     val locator = NodeLocator.byName(attr.get("distribution", "default")) match {
@@ -154,6 +198,10 @@ object MemcacheClient {
     client
   }
 
+  /**
+   * Create a new MemcacheClient from a server list, specifying the cluster's
+   * distribution and hash function by name.
+   */
   def create(servers: Array[String], distribution: String, hash: String) = {
     val pool = new ServerPool
     val connections = for (s <- servers) yield ServerPool.makeConnection(s, pool)

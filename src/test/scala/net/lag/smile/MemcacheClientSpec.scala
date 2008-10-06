@@ -135,7 +135,7 @@ object MemcacheClientSpec extends Specification {
       servers(1).fromClient mustEqual List("get b\r\n")
       servers(2).fromClient mustEqual List("get c\r\n")
     }
-    
+
     "multi-get keys from 1 server with namespacing" in {
       makeServers(List(
         Receive(17) :: Send(("VALUE a:a 0 5\r\napple\r\nVALUE a:b 0 5\r\n" +
