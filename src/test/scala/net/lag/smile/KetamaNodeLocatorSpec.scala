@@ -64,7 +64,7 @@ object KetamaNodeLocatorSpec extends Specification {
     "be compatible with a test on a very large server list" in {
       ClassLoader.getSystemClassLoader.getResourceAsStream("resources/ketama_results").read()
       Configgy.configureFromResource("resources/test1.conf")
-      val pool = ServerPool.fromConfig(Configgy.config.getAttributes("memcache").get)
+      val pool = ServerPool.fromConfig(Configgy.config.getConfigMap("memcache").get)
       val ketama = new KetamaNodeLocator
       ketama.setPool(pool)
       ketama

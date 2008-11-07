@@ -71,10 +71,6 @@ To get/set UTF-8 strings using a single-node memcache cluster on localhost::
 TO-DO
 =====
 
-- Add Future API to allow get/set to happen in the background while you do
-  other work. Wait, this may not be necessary. Scala lets you trivially turn
-  any operation into a future.
-
 - Support more than just get and set. At least delete, add, and append.
 
 - Expose the stats command in some useful way.

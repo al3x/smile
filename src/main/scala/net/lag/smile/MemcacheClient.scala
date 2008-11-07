@@ -5,7 +5,7 @@
 
 package net.lag.smile
 
-import net.lag.configgy.AttributeMap
+import net.lag.configgy.ConfigMap
 import net.lag.extensions._
 import scala.actors.Futures
 import scala.collection.mutable
@@ -186,15 +186,15 @@ object MemcacheClient {
    * may be specified with "<code>namespace</code>". The server list must be
    * in a string list called "<code>servers</code>".
    */
-  def create(attr: AttributeMap) = {
+  def create(attr: ConfigMap) = {
     val pool = ServerPool.fromConfig(attr)
-    val locator = NodeLocator.byName(attr.get("distribution", "default")) match {
+    val locator = NodeLocator.byName(attr("distribution", "default")) match {
       case (hashName, factory) =>
-        factory(KeyHasher.byName(attr.get("hash", hashName)))
+        factory(KeyHasher.byName(attr("hash", hashName)))
     }
     val client = new MemcacheClient(locator, MemcacheCodec.UTF8)
     client.setPool(pool)
-    client.namespace = attr.get("namespace")
+    client.namespace = attr.getString("namespace")
     client
   }
 

@@ -5,7 +5,7 @@
 
 package net.lag.smile
 
-import net.lag.configgy.AttributeMap
+import net.lag.configgy.ConfigMap
 import net.lag.extensions._
 import net.lag.naggati.IoHandlerActorAdapter
 import org.apache.mina.core.session.{IdleStatus, IoSession}
@@ -85,11 +85,9 @@ object ServerPool {
   /**
    * Make a new ServerPool out of a config block.
    */
-  def fromConfig(attr: AttributeMap) = {
+  def fromConfig(attr: ConfigMap) = {
     val pool = new ServerPool(attr.getBool("trace", false))
-    for (serverList <- attr.getStringList("servers")) {
-      pool.servers = for (desc <- serverList) yield makeConnection(desc, pool)
-    }
+    pool.servers = (for (desc <- attr.getList("servers")) yield makeConnection(desc, pool)).toArray
     for (n <- attr.getInt("retry_delay")) {
       pool.retryDelay = n * 1000
     }
